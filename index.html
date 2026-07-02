@@ -1,0 +1,3024 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Store - Control de Notas de Entrega</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+<style>
+        :root { 
+            --primary: #ff6600; 
+            --success: #10b981; 
+            --danger: #ef4444;  
+            --dark: #0f172a;    
+            --light: #f3f4f6;   
+            --warning: #f59e0b; 
+        }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; background: var(--light); color: #333; }
+        
+        #login-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+        .login-box { background: white; padding: 30px; border-radius: 8px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3); box-sizing: border-box; }
+
+        .navbar { display: flex; background: var(--dark); color: white; padding: 10px 20px; justify-content: space-between; align-items: center; position: relative; flex-wrap: wrap; gap: 10px; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 24px; cursor: pointer; display: block; }
+        .nav-content { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: var(--dark); padding: 15px 20px; box-sizing: border-box; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.3); gap: 15px; }
+        .nav-content.active { display: flex; }
+        
+        .tabs { display: flex; flex-direction: column; gap: 5px; }
+        .tab-btn { background: rgba(255,255,255,0.1); border: none; color: white; padding: 12px 15px; cursor: pointer; font-size: 15px; font-weight: 600; transition: 0.3s; text-align: left; border-radius: 4px; }
+        .tab-btn.active, .tab-btn:hover { background: var(--primary); }
+        
+        .tab-content { display: none; padding: 20px; max-width: 1400px; margin: auto; box-sizing: border-box; }
+        .tab-content.active { display: block; }
+
+        .tasa-box { background: #fff; padding: 5px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: bold; color: #333; box-sizing: border-box; }
+        .tasa-box input { width: 70px; padding: 3px; text-align: center; font-weight: bold; transition: 0.2s; }
+
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); margin-bottom: 20px; box-sizing: border-box; overflow: hidden; border-top: 4px solid var(--primary); transition: 0.3s; }
+        .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .input-field { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        .search-bar { width: 100%; padding: 12px; font-size: 15px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #bbb; box-sizing: border-box; }
+        
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; box-sizing: border-box; text-align: center; }
+        .btn-block { width: 100%; display: block; padding: 12px; font-size: 16px; }
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn:hover { opacity: 0.9; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; font-size: 14px; }
+        table th, table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        table th { background: #e9ecef; }
+        
+        .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; max-height: 500px; overflow-y: auto; padding: 5px; }
+        .prod-item { background: #fff; padding: 12px; border-radius: 6px; border: 1px solid #cee0f5; text-align: center; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .prod-item:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: #fbfdff; }
+
+        .progress-wrapper { width: 100%; background: #eee; border-radius: 4px; margin: 10px 0; display: none; }
+        .progress-bar { width: 0%; height: 20px; background: var(--success); text-align: center; color: white; line-height: 20px; font-size: 12px; border-radius: 4px; transition: width 0.1s; }
+        .lightbox { display: none; position: fixed; z-index: 99999; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; }
+        .lightbox img { max-width: 90%; max-height: 90%; border-radius: 5px; }
+
+        #factura-carta { 
+            display: none; width: 120mm; margin: 0 auto; padding: 10px 5px; background: white; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.4; color: #000; font-weight: bold; 
+        }
+        .factura-header { display: flex; flex-direction: column; align-items: center; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 10px; }
+        .factura-header div { text-align: center; width: 100% !important; }
+        .factura-header div:last-child { text-align: left !important; margin-top: 8px; border-top: 1px dashed #000; padding-top: 8px; }
+        .factura-header h2 { font-size: 14px; margin: 3px 0; font-weight: bold; }
+        .factura-header p { margin: 2px 0; font-size: 14px; }
+        .tabla-carta { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 14px; }
+        .tabla-carta th { background: none !important; border-top: 1px dashed #000; border-bottom: 1px dashed #000; border-left: none !important; border-right: none !important; padding: 4px 1px; font-weight: bold; }
+        .tabla-carta th:nth-child(1), .tabla-carta td:nth-child(1) { text-align: center; width: 10%; }
+        .tabla-carta th:nth-child(2), .tabla-carta td:nth-child(2) { text-align: left; width: 40%; }
+        .tabla-carta th:nth-child(3), .tabla-carta td:nth-child(3) { text-align: right; width: 15%; }
+        .tabla-carta th:nth-child(4), .tabla-carta td:nth-child(4) { text-align: right; width: 17%; }
+        .tabla-carta th:nth-child(5), .tabla-carta td:nth-child(5) { text-align: right; width: 18%; }
+        .tabla-carta td { border: none !important; padding: 3px 1px; vertical-align: top; word-break: break-word; }
+        .factura-totales-box { display: block !important; margin-top: 10px; border-top: 1px dashed #000; padding-top: 6px; }
+        .factura-totales-box > div { width: 100% !important; text-align: right !important; font-size: 11px; line-height: 1.4; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #factura-carta, #factura-carta * { visibility: visible; }
+            #factura-carta { display: block; position: absolute; left: 0; top: 0; width: 120mm; padding: 0; margin: 0; }
+            @page { size: auto; margin: 0mm; }
+        }
+
+        @media screen and (max-width: 850px) {
+            .grid-2, .grid-equal { grid-template-columns: 1fr !important; }
+            .navbar { flex-direction: column; text-align: center; gap: 10px; }
+            .navbar h3 { margin-bottom: 5px !important; font-size: 18px; }
+            .menu-toggle { width: 100%; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 5px; }
+            .nav-content > div:last-child { flex-direction: column; gap: 10px; align-items: stretch !important; }
+            .tasa-box { width: 100%; justify-content: center; }
+            .tab-content { padding: 10px; }
+            .card { padding: 15px; margin-bottom: 15px; }
+            .card > div[style*="display: flex"] { flex-wrap: wrap; gap: 10px; }
+            #barcode-scanner-horizontal { flex-direction: column; align-items: stretch !important; }
+            table { display: block; width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+            div[id^="modal-"] > div, #detalle-factura-card > div { width: 95% !important; max-width: 100% !important; padding: 15px !important; }
+            div[style*="display:flex; gap:10px; margin-bottom: 15px;"] { flex-direction: column; }
+        }
+        
+        @keyframes flash-producto {
+            0% { transform: scale(1); background-color: #fff; box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+            50% { transform: scale(1.08); background-color: #d1fae5; box-shadow: 0 0 20px rgba(16, 185, 129, 0.8); border-color: #10b981; }
+            100% { transform: scale(1); background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-color: #cee0f5; }
+        }
+        .destello-ok { animation: flash-producto 0.3s ease-out; }
+
+        @keyframes pulse-compra {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 12px 6px rgba(40, 167, 69, 0.4); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+        .btn-animado-compra { animation: pulse-compra 1.5s infinite; background: #28a745 !important; font-size: 18px !important; padding: 15px !important; border-radius: 8px !important; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Acceso al Sistema</h2>
+            <p>Ingrese sus credenciales de registro</p>
+            <label>Correo Electrónico:</label>
+            <input type="email" id="login-email" class="input-field" placeholder="correo@empresa.com">
+            <label>Contraseña de Acceso:</label>
+            <input type="password" id="login-pass" class="input-field" placeholder="••••••••">
+            <button class="btn btn-primary btn-block" style="margin-top: 15px;" onclick="iniciarSesion()">Ingresar</button>
+            <button class="btn btn-success btn-block" style="margin-top: 10px;" onclick="abrirRegistroCliente()">REGISTRARSE COMO NUEVO CLIENTE</button>
+        </div>
+    </div>
+
+    <div class="navbar">
+        <h3 id="display-user-nav" style="margin: 0;">Cargando...</h3>
+        
+        <button id="btn-notif-pedidos" class="btn btn-danger" style="display:none; animation: pulse-compra 1.5s infinite; border-radius: 20px; font-weight: bold; font-size: 13px; padding: 5px 15px; margin: 0 10px;" onclick="abrirModalPedidosPendientes()">
+            🔔 PEDIDOS PENDIENTES (<span id="badge-pedidos-count">0</span>)
+        </button>
+
+        <button id="btn-usuarios-online" class="btn" style="border-radius: 20px; font-weight: bold; font-size: 13px; padding: 5px 15px; margin: 0 10px; background: #0dcaf0; color: #000; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="document.getElementById('modal-usuarios-online').style.display='flex'">
+            🟢 EN LÍNEA: <span id="badge-online-count">0</span>
+        </button>
+
+        <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+
+        <div class="nav-content" id="menu-desplegable">
+            <div class="tabs">
+                <button class="tab-btn active" id="nav-caja" onclick="switchTab('tab-caja')">Caja / Tienda</button>
+                <button class="tab-btn" id="nav-perfil" onclick="switchTab('tab-perfil')" style="display: none; background: var(--success);">Mi Perfil</button>
+                <button class="tab-btn" id="nav-config" onclick="switchTab('tab-config')">Configuración</button>
+                <button class="tab-btn" id="nav-usuarios" onclick="switchTab('tab-usuarios')" style="display: none; background: #8b5cf6;">👥 Gestión de Usuarios</button>
+                <button class="tab-btn" id="nav-facturas" onclick="switchTab('tab-facturas')">Notas de Entrega & Abonos</button>
+                <button class="tab-btn" id="nav-personal" onclick="switchTab('tab-personal')">Almacén (Inventario)</button>
+                <button class="tab-btn" id="nav-clientes" onclick="switchTab('tab-clientes')">Clientes</button>
+                <button class="tab-btn" id="nav-reportes" onclick="switchTab('tab-reportes')">Estadísticas y Reportes</button>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                <div class="tasa-box" style="margin: 0;">
+                    <span>Tasa BCV Oficial:</span>
+                    <input type="number" id="global-tasa" step="0.01" value="0.00">
+                    <span>Bs</span>
+                </div>
+                <button class="btn btn-danger" onclick="cerrarSesion()">Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NUEVA PESTAÑA DE GESTIÓN DE USUARIOS -->
+    <div id="tab-usuarios" class="tab-content">
+        <div class="grid-2">
+            <div class="card">
+                <h3>🛡️ Registrar Personal</h3>
+                <p style="font-size:13px; color:#666;">Crea accesos oficiales para tu equipo. Las contraseñas son encriptadas por seguridad.</p>
+                <label>Nombre del Trabajador:</label>
+                <input type="text" id="reg-usr-nombre" class="input-field" placeholder="Ej: Carlos Pérez">
+                <label>Correo Electrónico Oficial:</label>
+                <input type="email" id="reg-usr-email" class="input-field" placeholder="carlos@tienda.com">
+                <label>Contraseña Temporal (Mínimo 6 caracteres):</label>
+                <input type="password" id="reg-usr-pass" class="input-field" placeholder="••••••••">
+                <label>Nivel de Acceso (Rol):</label>
+                <select id="reg-usr-rol" class="input-field">
+                    <option value="vendedor">Vendedor (Solo Caja y Clientes)</option>
+                    <option value="gerente">Gerente (Inventario, Reportes, Personal)</option>
+                    <option value="administrador">Administrador (Acceso Total)</option>
+                </select>
+                <button class="btn btn-primary btn-block" onclick="registrarNuevoTrabajador()" style="margin-top:15px;">Crear Cuenta de Personal</button>
+            </div>
+            <div class="card">
+                <h3>👥 Lista de Usuarios y Accesos</h3>
+                <p style="font-size:13px; color:#666;">Controla quién puede entrar al sistema. Suspender a un usuario le bloqueará el acceso inmediatamente.</p>
+                <div id="lista-gestion-usuarios" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+    <!-- FIN NUEVA PESTAÑA -->
+
+    <div id="tab-caja" class="tab-content active">
+        <div class="grid-2">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>Catálogo de Ventas</h3>
+                    <div style="background: var(--dark); color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">
+                        Total: <span id="total-usd-display">$0.00</span> | <span id="total-bs-display">0.00 Bs</span>
+                    </div>
+                </div>
+                
+                <div id="barcode-scanner-horizontal" style="display: flex; gap: 10px; align-items: center; background: #eef2f5; padding: 10px; border-radius: 6px; margin-bottom: 15px;">
+                    <span style="font-weight: bold; font-size: 14px; white-space: nowrap;">📋 Lector Barras:</span>
+                    <input type="text" id="caja-barcode-input" class="input-field" placeholder="Escanee o ingrese código de barras..." style="margin: 0; flex-grow: 1;" onkeydown="if(event.key === 'Enter') procesarEscaneoBarcode()">
+                    <button class="btn btn-primary" onclick="procesarEscaneoBarcode()" style="white-space: nowrap;">Buscar/Añadir</button>
+                </div>
+
+                <input type="text" id="caja-buscar-prod" class="search-bar" placeholder="🔍 Buscar producto en inventario rápido..." oninput="filtrarProductosCaja()">
+                <div class="prod-grid" id="caja-productos-container"></div>
+            </div>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>Nueva Nota de Entrega</h3>
+                    <button class="btn btn-danger" onclick="limpiarCaja()">Limpiar Caja</button>
+                </div>
+                
+                <label>Cliente (Cédula o Nombre):</label>
+                <div style="display: flex; gap: 10px; margin: 8px 0;">
+                    <input type="text" id="caja-cliente" class="input-field" style="margin: 0; flex-grow: 1;" placeholder="Cédula y presione ENTER (Vacío = EVENTUAL)..." onchange="verificarClienteCaja(this.value)" onkeydown="if(event.key === 'Enter') verificarClienteCaja(this.value)">
+                    <button class="btn btn-primary" onclick="verificarClienteCaja(document.getElementById('caja-cliente').value)">Buscar / Validar</button>
+                </div>
+
+                <button id="btn-pago-bdv" class="btn btn-block" style="display: none; background: #006bb3; color: white; margin-bottom: 15px; font-size: 16px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid #0056b3;" onclick="procesarPagoBDV()">📱 PAGAR CON BDV</button>
+
+                <div id="bloque-condiciones-pago">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                        <label style="margin: 0;">Condición de Pago:</label>
+                        <label style="cursor: pointer; font-weight: bold; color: var(--success); margin: 0; background: #e8f4f8; padding: 3px 8px; border-radius: 4px; border: 1px solid #b8daff;">
+                            <input type="checkbox" id="caja-check-efectivo" onchange="toggleCamposCajaCondicion()"> 💵 Pago en Efectivo
+                        </label>
+                    </div>
+                    <select id="caja-condicion-pago" class="input-field" onchange="toggleCamposCajaCondicion()">
+                        <option value="contado-sin-desc">De Contado (Sin Descuento)</option>
+                        <option value="contado">Contado (7% Desc)</option>
+                        <option value="15dias">A 15 Días (5% Desc)</option>
+                        <option value="30dias">A 30 Días (3% Desc)</option>
+                    </select>
+                </div>
+
+<div id="wrapper-valores-contado">
+    <div id="bloque-referencia" style="margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="margin: 0;">Referencia de Pago (5 dígitos):</label>
+            <span id="caja-comprobante-opcional" style="color:#666; font-size:12px; font-weight:bold;">(Opcional)</span>
+        </div>
+        <div style="display: flex; align-items: center; background: white; border: 1px solid #ccc; border-radius: 4px; padding-right: 5px;">
+            <input type="text" id="caja-referencia" class="input-field" placeholder="Ej: 12345" maxlength="5" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="border: none; margin: 0; flex-grow: 1; outline: none; box-shadow: none; padding: 10px;">
+            
+            <label for="caja-comprobante-file" style="cursor: pointer; background: #006bb3; color: white; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; margin: 0; white-space: nowrap; transition: 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                📸 Adjuntar
+            </label>
+            <input type="file" id="caja-comprobante-file" accept="image/*" onchange="analizarComprobante(this)" style="display: none;">
+        </div>
+    </div>
+
+    <div id="bloque-efectivo" style="display: none; background: #eef2f5; padding: 12px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #ccc;">
+        <label style="color: var(--primary); font-weight: bold; margin-bottom: 5px; display: block;">💵 CANTIDAD EN EFECTIVO RECIBIDA:</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="caja-monto-efectivo" class="input-field" step="0.01" style="margin: 0; flex: 2;" placeholder="Ingrese monto entregado..." oninput="calcularCambioEfectivo()">
+            <select id="caja-moneda-efectivo" class="input-field" style="margin: 0; flex: 1;" onchange="calcularCambioEfectivo()">
+                <option value="bs">Bolívares (Bs)</option>
+                <option value="usd">Dólares ($)</option>
+            </select>
+        </div>
+        <div style="margin-top: 10px; font-size: 15px; font-weight: bold; text-align: right; background: #fff; padding: 8px; border-radius: 4px; border-left: 4px solid var(--danger);">
+            Cambio a Devolver: <br>
+            <span style="color: var(--danger); font-size: 18px;">$<span id="cambio-usd">0.00</span> | <span id="cambio-bs">0.00</span> Bs</span>
+        </div>
+    </div>
+    
+    <div id="caja-monto-abono-container" style="display:none;">
+        <label>Monto del Abono Inicial (Bs):</label>
+        <input type="number" id="caja-monto-abono-bs" step="0.01" class="input-field" placeholder="Monto total liquidado en bolívares">
+    </div>
+
+                    
+                </div>
+                
+                <h4>Productos Seleccionados:</h4>
+                <div id="caja-items-seleccionados" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; border-bottom: 1px solid #ddd;"></div>
+                
+                <div id="totals-breakdown-box" style="background: #eef2f5; padding: 12px; border-radius: 4px; line-height: 1.6;">
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #333;">
+                        <span>Monto Total Bruto:</span>
+                        <span id="bruto-dinamico-txt">$0.00 | 0.00 Bs</span>
+                    </div>
+                    <div id="caja-descuento-row" style="display: flex; justify-content: space-between; font-size: 13px; color: var(--danger); margin-bottom: 4px;">
+                        <span>Descuentos Deducidos:</span>
+                        <span id="descuento-dinamico-txt">-$0.00 | -0.00 Bs</span>
+                    </div>
+                    <div id="caja-iva-row" style="display: none; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 4px;">
+                        <span>IVA (16%):</span>
+                        <span id="iva-dinamico-txt">+$0.00 | +0.00 Bs</span>
+                    </div>
+                    <div style="font-size: 18px; font-weight: bold; border-top: 1px dashed #bbb; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>TOTAL A PAGAR:</span>
+                        <div style="text-align: right;">
+                            <span style="color: var(--success);">$<span id="total-usd">0.00</span></span><br>
+                            <span style="color: #333; font-size: 14px;"><span id="total-bs">0.00</span> Bs</span>
+                        </div>
+                    </div>
+                </div>
+                <button id="btn-procesar-factura" class="btn btn-success btn-block" style="margin-top:15px;" onclick="procesarFacturacion()">GENERAR & IMPRIMIR NOTA</button>
+            </div>
+        </div>
+    </div>
+    <div id="tab-perfil" class="tab-content">
+        <div class="card" style="max-width: 600px; margin: auto;">
+            <h3 style="color: var(--primary);">👤 Registro / Mi Perfil</h3>
+            <p style="font-size: 14px; color: #666;">Llena tus datos de contacto y crea una contraseña para poder ingresar y comprar.</p>
+            
+            <label>Nombre y Apellido:</label>
+            <input type="text" id="perf-nombre" class="input-field" placeholder="Ej: Juan Pérez">
+            
+            <label>Cédula de Identidad:</label>
+            <input type="text" id="perf-cedula" class="input-field" placeholder="Ej: 20123456">
+            
+            <label>Número de Teléfono:</label>
+            <input type="text" id="perf-tel" class="input-field" placeholder="Ej: 0414-1234567">
+            
+            <label>Dirección (Con exactitud):</label>
+            <textarea id="perf-dir" class="input-field" rows="2" placeholder="Av. Principal, Edificio..."></textarea>
+            
+            <button id="btn-gps" class="btn" style="background: #17a2b8; color: white; margin-bottom: 15px; width: 100%; font-size: 14px; border: 2px solid #138496; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="obtenerUbicacionGPS()" type="button">📍 INGRESAR DIRECCIÓN EXACTA DESDE EL GPS</button>
+            <input type="hidden" id="perf-lat">
+            <input type="hidden" id="perf-lng">
+            
+            <div id="bloque-credenciales-registro">
+                <label style="color: var(--primary); font-weight: bold; margin-top: 10px; display: block;">Correo Electrónico (Para iniciar sesión):</label>
+                <input type="email" id="perf-email" class="input-field" placeholder="ejemplo@correo.com">
+                
+                <label style="color: var(--danger); font-weight: bold; margin-top: 10px; display: block;">Crea una Contraseña de Acceso:</label>
+                <input type="password" id="perf-pass" class="input-field" placeholder="Mínimo 6 caracteres">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-success" style="flex: 1;" onclick="guardarPerfilCliente()">💾 Guardar Mis Datos</button>
+                <button id="btn-cancelar-registro" class="btn btn-danger" style="flex: 1; display: none;" onclick="cancelarRegistro()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+           
+
+    <div id="modal-compra-exitosa" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index: 10000; align-items:center; justify-content:center; flex-direction: column;">
+        <div style="background: white; padding: 40px; border-radius: 15px; text-align: center; max-width: 90%; width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: popIn 0.5s ease-out;">
+            <div style="font-size: 70px; margin-bottom: 10px;">🎉</div>
+            <h2 style="color: var(--success); margin-top: 0; font-size: 28px;">¡COMPRA REALIZADA!</h2>
+            <p style="font-size: 16px; color: #555; line-height: 1.5;">¡Tu pedido ha sido procesado con éxito y en minutos estará en casa!</p>
+            <button class="btn btn-primary" style="margin-top: 20px; font-size: 16px; padding: 10px 30px;" onclick="document.getElementById('modal-compra-exitosa').style.display='none'">Aceptar y Volver a la Tienda</button>
+        </div>
+        <style>@keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }</style>
+    </div>
+    <div id="tab-config" class="tab-content">
+        <div class="card" style="max-width: 650px; margin: auto;">
+            <h3>Configuración de Datos de la Empresa</h3>
+            <div style="background: #eef2f5; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid var(--primary);">
+                <label style="cursor: pointer; font-weight: bold; margin: 0; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; color: #333;">
+                    <input type="checkbox" id="conf-iva" style="transform: scale(1.3);"> Activar Sistema de Impuesto (Aplica IVA 16% en Caja)
+                </label>
+                <label style="cursor: pointer; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 10px; color: #333;">
+                    <input type="checkbox" id="conf-comisiones" style="transform: scale(1.3);"> Activar Comisiones para Vendedores
+                </label>
+            </div>
+            <label>Nombre de la Empresa:</label>
+            <input type="text" id="conf-nombre" class="input-field">
+            <label>RIF:</label>
+            <input type="text" id="conf-rif" class="input-field">
+            <label>Dirección:</label>
+            <input type="text" id="conf-direccion" class="input-field">
+            <label>Números de Contacto:</label>
+            <input type="text" id="conf-contacto" class="input-field">
+            <label>Datos Bancarios de la Empresa:</label>
+            <textarea id="conf-banca" class="input-field" rows="3"></textarea>
+            <label>Logotipo de la Empresa (Imagen):</label>
+            <input type="file" id="conf-logo" class="input-field" accept="image/*">
+            <div id="logo-preview" style="margin-top: 10px;"></div>
+            <button class="btn btn-primary btn-block" style="margin-top:15px; margin-bottom: 30px;" onclick="guardarConfiguracion()">Guardar Parámetros</button>
+            
+            <div style="border: 2px dashed var(--danger); padding: 15px; border-radius: 8px; background: #fff5f5;">
+                <h3 style="color: var(--danger); margin-top: 0;">⚠️ Respaldo y Restauración Global</h3>
+                <p style="font-size: 13px; color: #555;">Descarga o restaura absolutamente <b>toda la información del servidor</b> (Configuración, Almacén, Facturas, Clientes, Personal, Abonos, Cajas y Reportes) en un archivo .txt.</p>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-success" style="flex: 1;" onclick="exportarRespaldoTotal()">⬇️ Respaldo Total (.txt)</button>
+                    <button class="btn btn-danger" style="flex: 1;" onclick="document.getElementById('file-carga-global').click()">⬆️ Carga Global (.txt)</button>
+                    <input type="file" id="file-carga-global" accept=".txt" style="display: none;" onchange="importarRespaldoTotal(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-facturas" class="tab-content">
+        <div id="panel-comisiones" style="background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #c3e6cb; display: none;">
+            <h4 style="margin: 0 0 5px 0;">💰 Panel de Comisiones Acumuladas (<span id="comision-porcentaje-display">10</span>%)</h4>
+            <div style="font-size: 14px; margin-bottom: 5px;">Aplica solo para notas de entrega 100% liquidadas.</div>
+            <div style="font-size: 16px; font-weight: bold;">
+                Total Ganado: <span id="total-comisiones-usd">$0.00</span> | <span id="total-comisiones-bs">0.00 Bs</span>
+            </div>
+        </div>
+
+        <input type="text" id="factura-buscador" class="search-bar" placeholder="🔍 Buscar por N° Nota, Referencias Bancarias (Cualquier Abono) o Vendedor..." oninput="filtrarFacturasHistorico()">
+        <div class="grid-2">
+            <div id="lista-facturas-historico"></div>
+            
+            <div id="detalle-factura-card" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 25px; border-radius: 8px; width: 650px; max-width: 95%; max-height: 90vh; overflow-y: auto; position: relative;">
+                    <button onclick="document.getElementById('detalle-factura-card').style.display='none'" style="position: absolute; right: 15px; top: 15px; background: var(--danger); color: white; border: none; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 4px; padding: 5px 10px; z-index: 10;">Cerrar ✖</button>
+                    
+                    <h3 style="margin-top: 0;">Detalles de la Nota de Entrega</h3>
+                    <div style="display:flex; gap:10px; margin-bottom: 15px;">
+                        <button class="btn btn-primary" style="flex: 1;" onclick="reimprimirFacturaSeleccionada()">🖨️ Imprimir</button>
+                        <button class="btn btn-success" style="flex: 1;" onclick="descargarFacturaArchivoLocal()">💾 Guardar en Equipo</button>
+                    </div>
+                    
+                    <div id="detalle-contenido"></div>
+                    
+                    <div id="status-comision-factura"></div>
+
+                    <h4>Módulo de Abonos & Amortizaciones</h4>
+                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">
+                        Saldo Restante: <span id="abono-saldo-restante-bs">0.00</span> Bs (<span id="abono-saldo-restante-usd">0.00</span> $)
+                    </div>
+                    <div class="grid-equal">
+                        <div>
+                            <label>Monto a Abonar (Bs):</label>
+                            <input type="number" id="abono-monto-bs" step="0.01" class="input-field" oninput="calcularEquivalenteAbono()">
+                        </div>
+                        <div>
+                            <label>Equivalente ($):</label>
+                            <input type="text" id="abono-monto-usd" class="input-field" readonly style="background:#eee;">
+                        </div>
+                    </div>
+                    <label>Número de Referencia del Abono (5 dígitos):</label>
+                    <input type="text" id="abono-ref-num" class="input-field" placeholder="Ej: 54321" maxlength="5" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    <label>Adjuntar Comprobante Digital (Imagen):</label>
+                    <input type="file" id="abono-file" class="input-field" accept="image/*">
+                    
+                    <div class="progress-wrapper" id="abono-loading-container">
+                        <div class="progress-bar" id="abono-loading-bar">0%</div>
+                    </div>
+
+                    <button class="btn btn-success btn-block" style="margin-top:5px;" onclick="registrarNuevoAbono()">Registrar y Aplicar Abono</button>
+                    
+                   <h5>Historial de Comprobantes y Abonos:</h5>
+                    <div id="lista-comprobantes-adjuntos" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                </div> </div> </div> </div> <div id="tab-personal" class="tab-content">
+        <div>
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+                    <h3 style="margin:0;">📦 Módulo Almacén (Inventario)</h3>
+                    <div>
+                        <button class="btn btn-success" onclick="exportarInventario()" style="padding: 5px 10px; font-size: 12px;">💾 Respaldar (.txt)</button>
+                        <button class="btn btn-primary" onclick="document.getElementById('file-input-inv').click()" style="padding: 5px 10px; font-size: 12px;">📂 Cargar Respaldo</button>
+                        <input type="file" id="file-input-inv" style="display:none" onchange="importarInventario(event)">
+                    </div>
+                </div>
+                <div style="background:#eef2f5; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <h4>Registrar / Actualizar Producto</h4>
+                    <input type="hidden" id="alm-id-edicion">
+                    <label>Nombre del Producto:</label>
+                    <input type="text" id="alm-nombre" class="input-field">
+                    
+                    <label>Código de Barras:</label>
+                    <input type="text" id="alm-barcode" class="input-field" placeholder="Escanee o asigne código de barras">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 5px;">
+                        <div>
+                            <label>Precio Costo ($):</label>
+                            <input type="number" id="alm-costo" step="0.01" class="input-field" oninput="calcDesdeCostoOGanancia()">
+                            <small style="color: #666; font-weight: bold;" id="alm-costo-bs">0.00 Bs</small>
+                        </div>
+                        <div>
+                            <label>% Ganancia:</label>
+                            <input type="number" id="alm-porcentaje" step="0.01" class="input-field" oninput="calcDesdeCostoOGanancia()">
+                        </div>
+                        <div>
+                            <label>Precio Venta ($):</label>
+                            <input type="number" id="alm-precio" step="0.01" class="input-field" oninput="calcDesdeVenta()">
+                            <small style="color: var(--success); font-weight: bold;" id="alm-precio-bs">0.00 Bs</small>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <label>Cantidad en Stock:</label>
+                        <input type="number" id="alm-stock" class="input-field" step="0.001" min="0" placeholder="Ej: 1 o 0.650">
+                    </div>
+                    <div style="margin: 10px 0 15px 0;">
+                        <label style="cursor: pointer; font-weight: bold; color: var(--danger); display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="alm-exento" style="transform: scale(1.2);"> Producto Exento de IVA (No sumar 16%)
+                        </label>
+                    </div>
+                    <button class="btn btn-success" id="btn-guardar-almacen" onclick="guardarProductoAlmacen()">Guardar Producto</button>
+                    <button class="btn btn-danger" id="btn-cancelar-edicion" style="display:none;" onclick="cancelarEdicionAlmacen()">Cancelar</button>
+                </div>
+                <div style="background:#eef2f5; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <h4>Ingreso Masivo de Productos</h4>
+                    <p style="font-size: 12px; margin-top:0;">Pegue la lista con el formato: <b>NOMBRE PRECIO STOCK</b> (separados por espacios). El sistema detectará automáticamente los nombres largos.</p>
+                    <textarea id="alm-masivo-texto" class="input-field" rows="4" placeholder="Ejemplo:&#10;Harina Pan Amarilla 1.20 50&#10;Arroz Mary 1.00 100"></textarea>
+                    <button class="btn btn-primary" onclick="procesarIngresoMasivo()">Cargar Lista Masiva</button>
+                </div>
+
+                <input type="text" id="almacen-buscar" class="search-bar" placeholder="🔍 Buscador rápido en almacén..." oninput="filtrarAlmacenTabla()">
+                <p style="font-size: 11px; color: #666; margin: 2px 0 8px 0;">💡 <i>Nota: Presione <b>doble clic</b> sobre la fila de cualquier producto para editarlo.</i></p>
+                <table style="font-size: 13px;">
+                    <thead>
+                        <tr><th>Producto / Código</th><th>Precio $</th><th>Stock</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="almacen-tabla-cuerpo"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="tab-clientes" class="tab-content">
+        <div class="card">
+            <h3>Directorio de Clientes</h3>
+            <p style="font-size:13px; color:#666; margin-top:0;">Haz clic sobre el nombre de cualquier cliente para ver sus datos de contacto y dirección.</p>
+            <input type="text" id="buscador-clientes" class="search-bar" placeholder="🔍 Buscar cliente por nombre o cédula..." oninput="renderizarTablaClientes()">
+            <table style="font-size:14px; margin-top:10px;">
+                <thead>
+                    <tr>
+                        <th>Nombre del Cliente</th>
+                        <th>Cédula</th>
+                        <th>N° Compras</th>
+                        <th>Total Gastado ($)</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-clientes-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-reportes" class="tab-content">
+        <div class="grid-2">
+            <div class="card">
+                <h3>📊 Reportes Financieros y de Ventas</h3>
+                <div style="margin-bottom: 15px;">
+                    <label>Seleccione el Período del Reporte:</label>
+                    <select id="reporte-periodo" class="input-field" onchange="generarReportesVentas()" style="font-weight: bold; font-size: 16px;">
+                        <option value="diario">Diario (Hoy)</option>
+                        <option value="semanal">Semanal (Desde el Lunes de esta semana)</option>
+                        <option value="mensual">Mensual (Mes en curso)</option>
+                        <option value="anual">Anual (Año en curso)</option>
+                    </select>
+                </div>
+
+                <div class="grid-equal" style="margin-bottom: 20px;">
+                    <div style="background: #eef2f5; padding: 15px; border-radius: 6px; border-left: 4px solid var(--success);">
+                        <div style="font-size: 13px; color: #555;">💵 Ingresos Efectivo:</div>
+                        <div style="font-size: 20px; font-weight: bold; color: var(--success);" id="rep-efectivo">$0.00</div>
+                    </div>
+                    <div style="background: #eef2f5; padding: 15px; border-radius: 6px; border-left: 4px solid var(--primary);">
+                        <div style="font-size: 13px; color: #555;">🏦 Ingresos por Bancos:</div>
+                        <div style="font-size: 20px; font-weight: bold; color: var(--primary);" id="rep-banco">$0.00</div>
+                    </div>
+                    <div style="background: #eef2f5; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107;">
+                        <div style="font-size: 13px; color: #555;">📈 Ganancia Estimada:</div>
+                        <div style="font-size: 20px; font-weight: bold; color: #d39e00;" id="rep-ganancia">$0.00</div>
+                    </div>
+                    <div style="background: #eef2f5; padding: 15px; border-radius: 6px; border-left: 4px solid var(--danger);">
+                        <div style="font-size: 13px; color: #555;">🏛️ Impuestos (IVA):</div>
+                        <div style="font-size: 20px; font-weight: bold; color: var(--danger);" id="rep-iva">$0.00</div>
+                    </div>
+                </div>
+
+                <h4>🏆 Desempeño por Vendedores / Usuarios</h4>
+                <div id="reporte-vendedores" style="max-height: 250px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">📦 Stock del Almacén</h3>
+                    <div style="background: var(--dark); color: white; padding: 5px 10px; border-radius: 4px; font-size: 13px;">
+                        Tipos de Producto: <span id="rep-total-tipos-prod" style="font-weight: bold;">0</span>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: #666;">Utilice esta lista para realizar conteos físicos de inventario en mostrador y almacén.</p>
+                
+                <div style="max-height: 480px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px;">
+                    <table style="font-size: 13px; margin: 0; width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; background: #e9ecef; z-index: 1;">
+                            <tr>
+                                <th style="padding: 10px;">Nombre del Producto</th>
+                                <th style="padding: 10px;">Costo $</th>
+                                <th style="padding: 10px;">Stock Físico</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reporte-inventario-tabla"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-nuevo-cliente" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index: 10000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:25px; border-radius:8px; width:400px; max-width:90%;">
+            <h3>Registrar Nuevo Cliente</h3>
+            <label>Cédula o Identificación:</label>
+            <input type="text" id="mod-cliente-cedula" class="input-field" readonly style="background:#e9ecef;">
+            <label>Nombre y Apellido / Razón Social:</label>
+            <input type="text" id="mod-cliente-nombre" class="input-field">
+            <label>Número de Teléfono:</label>
+            <input type="text" id="mod-cliente-telefono" class="input-field">
+            <label>Dirección de Residencia:</label>
+            <textarea id="mod-cliente-direccion" class="input-field" rows="2"></textarea>
+            
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn btn-success" style="flex:1;" onclick="guardarNuevoCliente()">Guardar y Seleccionar</button>
+                <button class="btn btn-danger" onclick="cerrarModalCliente()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-ver-cliente" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index: 10000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:25px; border-radius:8px; width:400px; max-width:90%; position:relative;">
+            <button onclick="document.getElementById('modal-ver-cliente').style.display='none'" style="position:absolute; right:10px; top:10px; background:none; border:none; font-size:20px; cursor:pointer;">✖</button>
+            <h3>Detalles del Cliente</h3>
+            <div id="detalles-cliente-info" style="font-size:14px; line-height:1.6;"></div>
+        </div>
+    </div>
+    <div id="lightbox-visor" class="lightbox" onclick="this.style.display='none'">
+        <img id="lightbox-img" src="">
+    </div>
+
+    <div id="factura-carta">
+        <div class="factura-header">
+            <div>
+                <img id="tk-logo" src="" style="max-height: 50px; display: none; margin-bottom: 5px;">
+                <h2 id="tk-empresa" style="margin:0;"></h2>
+                <p style="margin:2px 0;">RIF: <span id="tk-rif"></span></p>
+                <p style="margin:2px 0;">Dirección: <span id="tk-dir"></span></p>
+                <p style="margin:2px 0;">Telf: <span id="tk-tel"></span></p>
+            </div>
+            <div>
+                <h2 style="margin:0; text-decoration: underline; text-align: center;">NOTA DE ENTREGA</h2>
+                <p style="font-weight:bold; margin:3px 0;">N°: <span id="tk-num"></span></p>
+                <p style="margin:2px 0;">Fecha: <span id="tk-fecha"></span></p>
+                <p style="margin:2px 0;">Vendedor: <span id="tk-vend"></span></p>
+                <p style="margin:2px 0;">Cliente: <span id="tk-cliente-name"></span></p>
+                <p style="margin:2px 0;">Condición: <span id="tk-condicion"></span></p>
+                <p style="margin:2px 0;">Ref Base: <span id="tk-ref"></span></p>
+            </div>
+        </div>
+
+        <table class="tabla-carta">
+            <thead>
+                <tr>
+                    <th>Cant</th>
+                    <th>Descripción</th>
+                    <th>Precio</th>
+                    <th>Total($)</th>
+                    <th>Total(Bs)</th>
+                </tr>
+            </thead>
+            <tbody id="tk-items-tabla"></tbody>
+        </table>
+
+        <div class="factura-totales-box">
+            <div>
+                <div>Total Artículos: <span id="tk-total-cantidades">0</span></div>
+                
+                <div id="tk-desglose-completo" style="margin-top: 4px; border-top: 1px dashed #000; padding-top: 4px;">
+                    <div>Total Bruto: <span id="tk-bruto-calc"></span></div>
+                    <div>Descuentos: <span id="tk-desc-calc"></span></div>
+                    <div id="tk-iva-line" style="display:none;">IVA (16%): <span id="tk-iva-calc"></span></div>
+                </div>
+
+                <div style="font-weight: bold; border-top: 1px dashed #000; margin-top: 4px; padding-top: 4px; font-size: 13px;">
+                    TOTAL NETO: $<span id="tk-total-usd"></span>
+                </div>
+                <div style="font-weight: bold; font-size: 13px;">
+                    TOTAL NETO: <span id="tk-total-bs"></span> Bs
+                </div>
+                <div style="font-size: 10px; margin-top: 2px;">Tasa BCV: <span id="tk-tasa"></span> Bs/$</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 25px; text-align: center; font-weight: bold; border-top: 1px dashed #000; padding-top: 8px; font-size: 11px;">
+            ¡GRACIAS POR SU COMPRA!
+        </div>
+    </div>
+
+    
+    <div id="modal-ver-nota" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 95%; max-width: 630px; max-height: 90vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 5px 25px rgba(0,0,0,0.5);">
+        
+        <div style="background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 18px;">📄 Detalle de Nota de Entrega</h3>
+            <button onclick="cerrarModalNota()" style="background: none; border: none; color: white; font-size: 28px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        
+        <div id="modal-nota-contenido" style="padding: 20px; overflow-y: auto; background: #f4f6f9; flex-grow: 1; display: flex; justify-content: center;">
+            </div>
+        
+        <div style="padding: 15px; border-top: 1px solid #ccc; display: flex; gap: 10px; background: #fff;">
+            <button onclick="imprimirDesdeModal()" class="btn" style="background: var(--primary); flex: 1; font-weight: bold; font-size: 15px;">🖨️ Imprimir</button>
+            <button onclick="guardarDesdeModal()" class="btn" style="background: var(--success); flex: 1; font-weight: bold; font-size: 15px;">💾 Guardar en Equipo</button>
+        </div>
+    </div>
+</div>
+<div id="modal-pedidos-pendientes" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index: 10000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:25px; border-radius:8px; width:650px; max-width:95%; max-height:85vh; overflow-y:auto; position:relative;">
+            <button onclick="document.getElementById('modal-pedidos-pendientes').style.display='none'" style="position:absolute; right:15px; top:15px; background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-weight:bold;">✖ Cerrar</button>
+            <h3 style="margin-top:0; color:var(--danger); border-bottom: 2px solid #eee; padding-bottom: 10px;">🚨 Envíos Pendientes por Despachar</h3>
+            <p style="font-size:13px; color:#555;">Lista de compras online realizadas por los clientes que requieren despacho inmediato.</p>
+            <div id="lista-modal-pedidos">
+                    </div>
+            </div>
+        </div>    
+
+    <div id="modal-usuarios-online" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index: 10000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:25px; border-radius:8px; width:450px; max-width:90%; position:relative;">
+            <button onclick="document.getElementById('modal-usuarios-online').style.display='none'" style="position:absolute; right:15px; top:15px; background:var(--danger); color:white; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-weight:bold;">✖ Cerrar</button>
+            <h3 style="margin-top:0; color:#0f172a; border-bottom: 2px solid #eee; padding-bottom: 10px;">🟢 Usuarios Conectados Ahora</h3>
+            <p style="font-size:13px; color:#555;">Personas que están navegando en el sistema en tiempo real.</p>
+            <div id="lista-usuarios-online" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                </div>
+        </div>
+    </div>
+
+<script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, get, remove, runTransaction, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+
+        const firebaseConfig = {
+  apiKey: "AIzaSyC2VnWEmmtFDVnlXglUYQ_kaPwLSyPyskU",
+  authDomain: "sistema3-26e03.firebaseapp.com",
+  databaseURL: "https://sistema3-26e03-default-rtdb.firebaseio.com",
+  projectId: "sistema3-26e03",
+  storageBucket: "sistema3-26e03.firebasestorage.app",
+  messagingSenderId: "584135054110",
+  appId: "1:584135054110:web:079ca684598ad1f7c66f0f",
+  measurementId: "G-LXEENYERK6"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+        
+        // --- APP SECUNDARIA PARA CREAR USUARIOS SIN DESLOGUEAR AL ADMIN ---
+        const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+        const secondaryAuth = getAuth(secondaryApp);
+
+        let usuarioActivo = null;
+        let usuarioKeyActivo = null;
+        let rolActivo = null;
+        let cedulaActiva = null;
+        let tasaBcv = 0;
+        let carrito = [];
+        let productosCache = {};
+        let facturasCache = {};
+        let configCache = {};
+        let personalCache = {};
+        let clientesCache = {}; 
+        let idFacturaSeleccionada = null;
+
+        const PORCENTAJE_COMISION = 0.10;
+
+        window.onload = () => {
+            obtenerTasaBCVOficialDolarApi();
+            
+            // Autocompletar correo y contraseña si están guardados en memoria
+            const emailGuardado = localStorage.getItem('storeEmailGuardado');
+            const passGuardado = localStorage.getItem('storePassGuardado');
+            
+            if (emailGuardado) document.getElementById('login-email').value = emailGuardado;
+            if (passGuardado) document.getElementById('login-pass').value = passGuardado;
+        };
+
+        async function obtenerTasaBCVOficialDolarApi() {
+            try {
+                const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+                const data = await res.json();
+                tasaBcv = parseFloat(data.promedio || data.precio || 0);
+                document.getElementById('global-tasa').value = tasaBcv.toFixed(2);
+                actualizarTotalesCaja();
+            } catch (e) {
+                console.log("Fallo al consultar ve.dolarapi.com");
+            }
+        }
+        document.getElementById('global-tasa').addEventListener('input', (e) => {
+            tasaBcv = parseFloat(e.target.value) || 0;
+            actualizarTotalesCaja();
+            renderizarFacturasHistorico();
+            if(idFacturaSeleccionada) verDetalleFactura(idFacturaSeleccionada);
+            if (typeof calcularCambioEfectivo === 'function') calcularCambioEfectivo();
+            if (typeof calcDesdeCostoOGanancia === 'function' && document.getElementById('alm-costo')) calcDesdeCostoOGanancia();
+        });
+
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            let btnId = tabId.replace('tab-', 'nav-');
+            let btn = document.getElementById(btnId);
+            if(btn) btn.classList.add('active');
+            const menu = document.getElementById('menu-desplegable');
+            if(menu) menu.classList.remove('active');
+        };
+
+        window.toggleMenu = function() {
+            const menu = document.getElementById('menu-desplegable');
+            if(menu) menu.classList.toggle('active');
+        };
+
+        function inicializarEscuchasBaseDatos(rolDelUsuario) {
+            onValue(ref(db, 'configuracion'), (snapshot) => {
+                configCache = snapshot.val() || {};
+                if(document.getElementById('conf-iva')) document.getElementById('conf-iva').checked = configCache.ivaActivo || false;
+                if(document.getElementById('conf-comisiones')) document.getElementById('conf-comisiones').checked = configCache.comisionesActivas || false;
+                document.getElementById('conf-nombre').value = configCache.nombre || '';
+                document.getElementById('conf-rif').value = configCache.rif || '';
+                document.getElementById('conf-direccion').value = configCache.direccion || '';
+                document.getElementById('conf-contacto').value = configCache.contacto || '';
+                document.getElementById('conf-banca').value = configCache.banca || '';
+                if(configCache.logo) document.getElementById('logo-preview').innerHTML = `<img src="${configCache.logo}" style="max-height:60px;">`;
+            });
+
+            onValue(ref(db, 'almacen'), (snapshot) => {
+                productosCache = snapshot.val() || {};
+                renderizarAlmacenMantenimiento();
+                renderizarCatalogoCaja();
+                if(typeof renderizarReporteInventario === 'function') renderizarReporteInventario();
+            });
+
+            onValue(ref(db, 'presencia'), (snapshot) => {
+                const conectados = snapshot.val() || {};
+                let count = 0;
+                let html = '';
+                for(let key in conectados) {
+                    count++;
+                    let rolDisplay = conectados[key].rol.toUpperCase();
+                    let colorBadge = conectados[key].rol === 'cliente' ? 'var(--success)' : 'var(--primary)';
+                    html += `
+                        <div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:bold; color:#333;">👤 ${conectados[key].nombre}</span>
+                            <span style="background:${colorBadge}; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">${rolDisplay}</span>
+                        </div>
+                    `;
+                }
+                const badgeCount = document.getElementById('badge-online-count');
+                const listOnline = document.getElementById('lista-usuarios-online');
+                if(badgeCount) badgeCount.innerText = count;
+                if(listOnline) {
+                    listOnline.innerHTML = count > 0 ? html : '<p style="text-align:center; color:#666; padding: 20px;">Nadie en línea</p>';
+                }
+            });
+
+            // Todos necesitan leer facturas, pero los clientes solo verán las suyas visualmente
+            onValue(ref(db, 'facturas'), (snapshot) => {
+                facturasCache = snapshot.val() || {};
+                
+                // Dispara las notificaciones y el historial visual de inmediato (Velocidad rayo)
+                renderizarFacturasHistorico();
+                
+                // Retrasa 1 segundo el cálculo de estadísticas ocultas para no congelar la pantalla
+                if(rolDelUsuario !== 'cliente') {
+                    setTimeout(() => {
+                        if(typeof renderizarTablaClientes === 'function') renderizarTablaClientes();
+                        if(typeof generarReportesVentas === 'function') generarReportesVentas();
+                    }, 1000);
+                }
+            });
+
+            if (rolDelUsuario !== 'cliente') {
+                onValue(ref(db, 'personal'), (snapshot) => {
+                    personalCache = snapshot.val() || {};
+                    if(typeof renderizarGestionUsuarios === 'function') renderizarGestionUsuarios();
+                });
+
+                onValue(ref(db, 'clientes'), (snapshot) => {
+                    clientesCache = snapshot.val() || {};
+                    if(typeof renderizarTablaClientes === 'function') renderizarTablaClientes();
+                });
+            }
+        }
+
+        window.iniciarSesion = function() {
+            const email = document.getElementById('login-email').value.trim();
+            const passInput = document.getElementById('login-pass').value.trim();
+
+            if(!email || !passInput) return alert("Ingrese correo y contraseña.");
+
+            const btn = document.querySelector('.login-box .btn-primary');
+            btn.innerText = "Verificando seguridad...";
+            btn.disabled = true;
+
+            signInWithEmailAndPassword(auth, email, passInput)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    
+                    return get(ref(db, `personal/${user.uid}`)).then((snapshot) => {
+                        if(snapshot.exists()) {
+                            const userObj = snapshot.val();
+                            
+                            if(userObj.activo === false) {
+                                signOut(auth); 
+                                btn.innerText = "Ingresar";
+                                btn.disabled = false;
+                                return alert("⛔ ACCESO DENEGADO \n\nEsta cuenta ha sido suspendida por la administración.");
+                            }
+
+                            usuarioActivo = userObj.nombre;
+                            usuarioKeyActivo = user.uid; 
+                            rolActivo = userObj.rol;
+                            cedulaActiva = userObj.perfil ? userObj.perfil.cedula : null;
+
+                            // Guardar credenciales en la memoria del navegador para la próxima vez
+                            localStorage.setItem('storeEmailGuardado', email);
+                            localStorage.setItem('storePassGuardado', passInput);
+
+                            document.getElementById('login-overlay').style.display = 'none';
+                            document.getElementById('login-pass').value = '';
+                            document.getElementById('display-user-nav').innerText = `👤 ${usuarioActivo} [${rolActivo.toUpperCase()}]`;
+
+                            const connectedRef = ref(db, ".info/connected");
+                            onValue(connectedRef, (snap) => {
+                                if (snap.val() === true && usuarioKeyActivo) {
+                                    const miPresenciaRef = ref(db, `presencia/${usuarioKeyActivo}`);
+                                    onDisconnect(miPresenciaRef).remove().then(() => {
+                                        set(miPresenciaRef, { nombre: usuarioActivo, rol: rolActivo, timestamp: Date.now() });
+                                    });
+                                }
+                            });
+
+                            inicializarEscuchasBaseDatos(rolActivo);
+                            configurarVistasPorRol(userObj); 
+                            
+                        } else {
+                            alert(`❌ ERROR DE SINCRONIZACIÓN\n\nFirebase autorizó tu correo, pero no encontró tus permisos de Administrador en la Base de Datos.\n\nPor favor verifica en la pestaña 'Realtime Database' que hayas creado la carpeta 'personal' y dentro pegado exactamente este código:\n${user.uid}`);
+                            signOut(auth);
+                            btn.innerText = "Ingresar";
+                            btn.disabled = false;
+                        }
+                    }).catch((dbError) => {
+                        alert(`❌ ERROR DE REGLAS DE FIREBASE\n\nFirebase bloqueó la lectura de tu perfil.\n\nDetalle técnico: ${dbError.message}`);
+                        signOut(auth);
+                        btn.innerText = "Ingresar";
+                        btn.disabled = false;
+                    });
+                })
+                .catch((error) => {
+                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                        alert("❌ Acceso denegado: El correo o la contraseña son incorrectos.");
+                    } else if (error.code === 'auth/invalid-email') {
+                        alert("❌ Acceso denegado: El formato del correo no es válido.");
+                    } else {
+                        alert("❌ Error de Firebase: " + error.message);
+                    }
+                    btn.innerText = "Ingresar";
+                    btn.disabled = false;
+                });
+        };
+
+        function configurarVistasPorRol(userObj) {
+            const inputTasaElement = document.getElementById('global-tasa');
+            const cardCaja = document.getElementById('btn-procesar-factura').parentElement;
+            cardCaja.style.display = 'flex';
+            cardCaja.style.flexDirection = 'column';
+
+            if(rolActivo === 'administrador') {
+                inputTasaElement.disabled = false;
+                inputTasaElement.style.backgroundColor = "#ffffff";
+            } else {
+                inputTasaElement.disabled = true;
+                inputTasaElement.style.backgroundColor = "#e9ecef";
+            }
+
+            if(rolActivo === 'vendedor') {
+                document.getElementById('nav-config').style.display = 'none';
+                document.getElementById('nav-usuarios').style.display = 'none';
+                document.getElementById('nav-facturas').style.display = 'block';
+                document.getElementById('nav-clientes').style.display = 'block';
+                document.getElementById('nav-personal').style.display = 'none';
+                document.getElementById('nav-perfil').style.display = 'none';
+                if(document.getElementById('nav-reportes')) document.getElementById('nav-reportes').style.display = 'none';
+                if(document.getElementById('btn-pago-bdv')) document.getElementById('btn-pago-bdv').style.display = 'none';
+                document.getElementById('bloque-condiciones-pago').style.display = 'block';
+                document.getElementById('caja-descuento-row').style.display = 'flex';
+                document.getElementById('caja-cliente').readOnly = false;
+                document.getElementById('caja-cliente').nextElementSibling.style.display = 'block';
+                document.getElementById('barcode-scanner-horizontal').style.display = 'flex';
+                document.getElementById('btn-procesar-factura').innerText = 'GENERAR & IMPRIMIR NOTA';
+                document.getElementById('btn-procesar-factura').classList.remove('btn-animado-compra');
+                document.getElementById('nav-facturas').innerText = "Notas de Entrega & Abonos";
+                switchTab('tab-caja');
+            } else if (rolActivo === 'cliente') {
+                document.getElementById('nav-config').style.display = 'none';
+                document.getElementById('nav-usuarios').style.display = 'none';
+                document.getElementById('nav-facturas').style.display = 'block'; // ACTIVADO PARA EL CLIENTE
+                document.getElementById('nav-facturas').innerText = '📦 Mis Pedidos y Compras'; // Cambio de nombre estético
+                document.getElementById('nav-personal').style.display = 'none';
+                document.getElementById('nav-clientes').style.display = 'none';
+                if(document.getElementById('nav-reportes')) document.getElementById('nav-reportes').style.display = 'none';
+                document.getElementById('nav-perfil').style.display = 'block';
+                if(document.getElementById('btn-pago-bdv')) document.getElementById('btn-pago-bdv').style.display = 'block';
+                document.getElementById('bloque-condiciones-pago').style.display = 'none';
+                document.getElementById('caja-descuento-row').style.display = 'none';
+                document.getElementById('caja-condicion-pago').value = 'contado-sin-desc'; 
+                toggleCamposCajaCondicion();
+
+                if (userObj.perfil) {
+                    document.getElementById('perf-nombre').value = userObj.perfil.nombre || "";
+                    document.getElementById('perf-cedula').value = userObj.perfil.cedula || "";
+                    document.getElementById('perf-tel').value = userObj.perfil.telefono || "";
+                    document.getElementById('perf-dir').value = userObj.perfil.direccion || "";
+                    document.getElementById('caja-cliente').value = userObj.perfil.nombre;
+                    document.getElementById('caja-cliente').setAttribute('data-cedula', userObj.perfil.cedula);
+                    
+                    const bloqueCredenciales = document.getElementById('bloque-credenciales-registro');
+                    if (bloqueCredenciales) {
+                        bloqueCredenciales.style.display = 'none';
+                    }
+                }
+                
+                document.getElementById('caja-cliente').readOnly = true;
+                document.getElementById('caja-cliente').nextElementSibling.style.display = 'none';
+                document.getElementById('barcode-scanner-horizontal').style.display = 'none';
+                document.getElementById('btn-procesar-factura').innerText = '🛒 ENVIAR PEDIDO';
+                document.getElementById('btn-procesar-factura').classList.add('btn-animado-compra');
+                
+                if (!userObj.perfil || !userObj.perfil.nombre) {
+                    switchTab('tab-perfil');
+                    setTimeout(() => alert("👋 ¡Bienvenido!\n\nPor favor completa tus datos de contacto para poder enviarte tus compras."), 400);
+                } else {
+                    switchTab('tab-caja');
+                }
+            } else {
+                // Administradores y Gerentes
+                document.getElementById('nav-config').style.display = 'block';
+                document.getElementById('nav-usuarios').style.display = (rolActivo === 'administrador') ? 'block' : 'none'; 
+                document.getElementById('nav-facturas').style.display = 'block';
+                document.getElementById('nav-personal').style.display = 'block';
+                document.getElementById('nav-clientes').style.display = 'block';
+                document.getElementById('nav-perfil').style.display = 'none';
+                if(document.getElementById('nav-reportes')) document.getElementById('nav-reportes').style.display = 'block';
+                if(document.getElementById('btn-pago-bdv')) document.getElementById('btn-pago-bdv').style.display = 'none';
+                document.getElementById('bloque-condiciones-pago').style.display = 'block';
+                document.getElementById('caja-descuento-row').style.display = 'flex';
+                document.getElementById('caja-cliente').readOnly = false;
+                document.getElementById('caja-cliente').nextElementSibling.style.display = 'block';
+                document.getElementById('barcode-scanner-horizontal').style.display = 'flex';
+                document.getElementById('btn-procesar-factura').innerText = 'GENERAR & IMPRIMIR NOTA';
+                document.getElementById('btn-procesar-factura').classList.remove('btn-animado-compra');
+                document.getElementById('nav-facturas').innerText = "Notas de Entrega & Abonos";
+                switchTab('tab-caja');
+            }
+        }
+
+        window.cerrarSesion = function() {
+            if (usuarioKeyActivo) {
+                remove(ref(db, `presencia/${usuarioKeyActivo}`));
+            }
+            signOut(auth).then(() => {
+                location.reload(); 
+            });
+        };
+
+        // --- FUNCIONES DEL NUEVO PANEL DE GESTION DE USUARIOS ---
+        window.registrarNuevoTrabajador = function() {
+            if(rolActivo !== 'administrador') return alert("Solo el administrador principal puede crear accesos.");
+
+            const nombre = document.getElementById('reg-usr-nombre').value.trim();
+            const email = document.getElementById('reg-usr-email').value.trim();
+            const pass = document.getElementById('reg-usr-pass').value.trim();
+            const rol = document.getElementById('reg-usr-rol').value;
+
+            if(!nombre || !email || pass.length < 6) return alert("Complete todos los campos. La clave debe tener mínimo 6 caracteres.");
+
+            const btn = event.target;
+            btn.innerText = "Protegiendo y Creando..."; btn.disabled = true;
+
+            createUserWithEmailAndPassword(secondaryAuth, email, pass)
+                .then((userCredential) => {
+                    const newUid = userCredential.user.uid;
+                    const nuevoUsuario = {
+                        nombre: nombre,
+                        rol: rol,
+                        activo: true,
+                        email: email
+                    };
+
+                    set(ref(db, `personal/${newUid}`), nuevoUsuario).then(() => {
+                        alert(`✅ ¡Cuenta de ${rol} creada exitosamente!\n\nEntréguele este correo y contraseña al trabajador.`);
+                        document.getElementById('reg-usr-nombre').value = '';
+                        document.getElementById('reg-usr-email').value = '';
+                        document.getElementById('reg-usr-pass').value = '';
+                        signOut(secondaryAuth);
+                        btn.innerText = "Crear Cuenta de Personal"; btn.disabled = false;
+                    });
+                })
+                .catch((error) => {
+                    alert("Error de Firebase al crear usuario: " + error.message);
+                    btn.innerText = "Crear Cuenta de Personal"; btn.disabled = false;
+                });
+        };
+
+        window.cambiarEstadoUsuario = function(key, estadoActual) {
+            if(rolActivo !== 'administrador') return alert("Permisos insuficientes.");
+            if(key === usuarioKeyActivo) return alert("No puedes suspender tu propia cuenta activa.");
+            
+            let accion = estadoActual ? "Restaurar" : "Suspender";
+            if(confirm(`¿Deseas ${accion} el acceso de este usuario al sistema?`)) {
+                set(ref(db, `personal/${key}/activo`), estadoActual);
+            }
+        };
+
+        window.eliminarUsuarioDelSistema = function(key) {
+            if(rolActivo !== 'administrador') return alert("Permisos insuficientes.");
+            if(confirm("⚠️ ¿Está absolutamente seguro de ELIMINAR a este usuario?\n\nPerderá el acceso al sistema para siempre. Esta acción no se puede deshacer.")) {
+                remove(ref(db, `personal/${key}`)).then(() => {
+                    alert("✅ Usuario eliminado exitosamente del sistema.");
+                }).catch(err => alert("Error al eliminar: " + err.message));
+            }
+        };
+
+        window.enviarCorreoResetClave = function(emailUsuario) {
+            if(rolActivo !== 'administrador') return alert("Permisos insuficientes.");
+            if(!emailUsuario) return alert("Este usuario no tiene un correo válido registrado.");
+            
+            if(confirm(`📧 ¿Desea enviar un enlace seguro de cambio de contraseña al correo:\n${emailUsuario}?`)) {
+                sendPasswordResetEmail(auth, emailUsuario).then(() => {
+                    alert("✅ Enlace enviado. Pídale al usuario que revise su bandeja de entrada (o carpeta Spam) para establecer su nueva contraseña.");
+                }).catch((error) => {
+                    alert("❌ Error al enviar el correo: " + error.message);
+                });
+            }
+        };
+
+        window.renderizarGestionUsuarios = function() {
+            const container = document.getElementById('lista-gestion-usuarios');
+            if(!container) return;
+            container.innerHTML = '';
+
+            for(let key in personalCache) {
+                const u = personalCache[key];
+                let badgeRol = u.rol === 'administrador' ? 'background: #dc3545;' : (u.rol === 'gerente' ? 'background: #fd7e14;' : (u.rol === 'cliente' ? 'background: #10b981;' : 'background: #0d6efd;'));
+                let badgeStatus = u.activo ? `<span style="color:var(--success); font-weight:bold;">✅ Acceso Permitido</span>` : `<span style="color:var(--danger); font-weight:bold;">⛔ Acceso Bloqueado</span>`;
+                
+                let btnAccion = u.activo 
+                    ? `<button class="btn btn-warning" style="padding: 5px 10px; font-size:12px; border-radius:4px; margin-bottom: 5px; width: 100%; color: #000;" onclick="cambiarEstadoUsuario('${key}', false)">⏸️ Suspender</button>`
+                    : `<button class="btn btn-success" style="padding: 5px 10px; font-size:12px; border-radius:4px; margin-bottom: 5px; width: 100%;" onclick="cambiarEstadoUsuario('${key}', true)">▶️ Restaurar</button>`;
+
+                if(key === usuarioKeyActivo) {
+                    btnAccion = `<span style="font-size:12px; color:#666; font-weight:bold; display:block; margin-bottom:5px; text-align: center;">(Tú - Sesión Actual)</span>`;
+                }
+
+                let btnEliminar = `<button class="btn btn-danger" style="padding: 5px 10px; font-size:12px; border-radius:4px; margin-bottom: 5px; width: 100%;" onclick="eliminarUsuarioDelSistema('${key}')">🗑️ Eliminar</button>`;
+                let btnClave = `<button class="btn btn-primary" style="padding: 5px 10px; font-size:12px; border-radius:4px; width: 100%;" onclick="enviarCorreoResetClave('${u.email}')">🔑 Cambiar Clave</button>`;
+
+                // Si es el usuario actual, ocultamos el botón de eliminar por seguridad
+                if(key === usuarioKeyActivo) btnEliminar = '';
+                // Si no hay correo, ocultamos el botón de cambiar clave
+                if(!u.email) btnClave = '';
+
+                container.innerHTML += `
+                    <div style="background:#fff; border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                        <div style="flex-grow: 1;">
+                            <b style="font-size:15px;">${u.nombre}</b> <span style="${badgeRol} color:white; padding:3px 8px; border-radius:12px; font-size:11px; margin-left:5px; font-weight:bold;">${u.rol.toUpperCase()}</span><br>
+                            <span style="color:#555; font-size:13px;">📧 ${u.email || (u.perfil ? 'Cliente Externo' : 'Sin correo')}</span><br>
+                            <div style="margin-top:5px; font-size:13px;">${badgeStatus}</div>
+                        </div>
+                        <div style="min-width: 130px; display: flex; flex-direction: column;">
+                            ${btnAccion}
+                            ${btnEliminar}
+                            ${btnClave}
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        function renderizarAlmacenMantenimiento() {
+            const tbody = document.getElementById('almacen-tabla-cuerpo');
+            tbody.innerHTML = '';
+            for(let key in productosCache) {
+                const p = productosCache[key];
+                const barcodeDisplay = p.codigoBarras ? `<br><small style="color:#666;">Code: ${p.codigoBarras}</small>` : '';
+                
+                tbody.innerHTML += `
+                    <tr class="row-almacen-item" data-name="${p.nombre.toLowerCase()}" ondblclick="cargarProductoParaEditar('${key}')" title="Doble clic para editar este producto" style="cursor: pointer;">
+                        <td><b>${p.nombre}</b>${barcodeDisplay}</td>
+                        <td>$${p.precio.toFixed(2)}</td>
+                        <td>${parseFloat(p.stock.toFixed(3))}</td>
+                        <td>
+                            <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); eliminarProductoAlmacen('${key}')">Borrar</button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+window.filtrarAlmacenTabla = function() {
+            const val = document.getElementById('almacen-buscar').value.toLowerCase();
+            document.querySelectorAll('.row-almacen-item').forEach(row => {
+                row.style.display = row.getAttribute('data-name').includes(val) ? '' : 'none';
+            });
+        };
+
+        window.calcDesdeCostoOGanancia = function() {
+            const costo = parseFloat(document.getElementById('alm-costo').value) || 0;
+            const porcentaje = parseFloat(document.getElementById('alm-porcentaje').value) || 0;
+            
+            let precioVenta = costo;
+            if (costo > 0 && porcentaje > 0) {
+                precioVenta = costo + (costo * (porcentaje / 100));
+            }
+            
+            document.getElementById('alm-precio').value = precioVenta > 0 ? precioVenta.toFixed(2) : '';
+            
+            document.getElementById('alm-costo-bs').innerText = (costo * tasaBcv).toFixed(2) + ' Bs';
+            document.getElementById('alm-precio-bs').innerText = ((precioVenta || 0) * tasaBcv).toFixed(2) + ' Bs';
+        };
+
+        window.calcDesdeVenta = function() {
+            const costo = parseFloat(document.getElementById('alm-costo').value) || 0;
+            const precioVenta = parseFloat(document.getElementById('alm-precio').value) || 0;
+            
+            if (costo > 0 && precioVenta > costo) {
+                const porcentaje = ((precioVenta - costo) / costo) * 100;
+                document.getElementById('alm-porcentaje').value = porcentaje.toFixed(2);
+            } else if (costo > 0 && precioVenta <= costo) {
+                document.getElementById('alm-porcentaje').value = '0.00';
+            }
+            
+            document.getElementById('alm-costo-bs').innerText = (costo * tasaBcv).toFixed(2) + ' Bs';
+            document.getElementById('alm-precio-bs').innerText = (precioVenta * tasaBcv).toFixed(2) + ' Bs';
+        };
+
+        window.guardarProductoAlmacen = function() {
+            const id = document.getElementById('alm-id-edicion').value;
+            const nombre = document.getElementById('alm-nombre').value.trim();
+            const codigoBarras = document.getElementById('alm-barcode').value.trim() || "";
+            const costo = parseFloat(document.getElementById('alm-costo').value) || 0;
+            const porcentaje = parseFloat(document.getElementById('alm-porcentaje').value) || 0;
+            const precio = parseFloat(document.getElementById('alm-precio').value);
+            const stock = parseFloat(document.getElementById('alm-stock').value);
+            const exento = document.getElementById('alm-exento') ? document.getElementById('alm-exento').checked : false;
+
+            if(!nombre || isNaN(precio) || isNaN(stock)) return alert("Complete los datos principales del producto (Nombre, Precio Venta y Stock).");
+
+            const prodData = { nombre, codigoBarras, costo, porcentaje, precio, stock, exento };
+            if(id) {
+                set(ref(db, `almacen/${id}`), prodData).then(() => cancelarEdicionAlmacen());
+            } else {
+                push(ref(db, 'almacen'), prodData);
+                cancelarEdicionAlmacen();
+            }
+        };
+
+        window.cargarProductoParaEditar = function(key) {
+            const p = productosCache[key];
+            document.getElementById('alm-id-edicion').value = key;
+            document.getElementById('alm-nombre').value = p.nombre;
+            document.getElementById('alm-barcode').value = p.codigoBarras || '';
+            document.getElementById('alm-costo').value = p.costo || '';
+            document.getElementById('alm-porcentaje').value = p.porcentaje || '';
+            document.getElementById('alm-precio').value = p.precio;
+            document.getElementById('alm-stock').value = p.stock;
+            if(document.getElementById('alm-exento')) document.getElementById('alm-exento').checked = p.exento || false;
+            if(typeof calcDesdeCostoOGanancia === 'function') calcDesdeCostoOGanancia();
+            document.getElementById('btn-guardar-almacen').innerText = "Actualizar Cambios";
+            document.getElementById('btn-cancelar-edicion').style.display = 'inline-block';
+        };
+
+        window.cancelarEdicionAlmacen = function() {
+            document.getElementById('alm-id-edicion').value = '';
+            document.getElementById('alm-nombre').value = '';
+            document.getElementById('alm-barcode').value = '';
+            document.getElementById('alm-costo').value = '';
+            document.getElementById('alm-porcentaje').value = '';
+            document.getElementById('alm-precio').value = '';
+            document.getElementById('alm-stock').value = '';
+            if(document.getElementById('alm-exento')) document.getElementById('alm-exento').checked = false;
+            document.getElementById('alm-costo-bs').innerText = '0.00 Bs';
+            document.getElementById('alm-precio-bs').innerText = '0.00 Bs';
+            document.getElementById('btn-guardar-almacen').innerText = "Guardar Producto";
+            document.getElementById('btn-cancelar-edicion').style.display = 'none';
+        };
+
+        window.eliminarProductoAlmacen = function(key) {
+            if(confirm("¿Eliminar este producto permanentemente del inventario?")) {
+                remove(ref(db, `almacen/${key}`));
+            }
+        };
+        
+        window.procesarIngresoMasivo = function() {
+            const texto = document.getElementById('alm-masivo-texto').value.trim();
+            if(!texto) return alert("Por favor, ingrese los productos en el cuadro de texto.");
+
+            const lineas = texto.split('\n');
+            let agregados = 0;
+            let errores = 0;
+
+            lineas.forEach(linea => {
+                if(!linea.trim()) return;
+                const partes = linea.trim().split(/\s+/);
+                if(partes.length < 3) { errores++; return; }
+
+                const stockStr = partes.pop();
+                const precioStr = partes.pop();
+                const nombre = partes.join(' ').trim();
+
+                const stock = parseFloat(stockStr.replace(',', '.'));
+                const precio = parseFloat(precioStr.replace(',', '.')); 
+
+                if(!nombre || isNaN(precio) || isNaN(stock)) { errores++; return; }
+
+                const prodData = { nombre, codigoBarras: "", precio, stock };
+                push(ref(db, 'almacen'), prodData);
+                agregados++;
+            });
+
+            alert(`Proceso finalizado.\n✅ Productos agregados: ${agregados}\n⚠️ Errores u omitidos: ${errores}`);
+            document.getElementById('alm-masivo-texto').value = '';
+        };
+
+        function renderizarCatalogoCaja() {
+            const container = document.getElementById('caja-productos-container');
+            container.innerHTML = '';
+            for(let key in productosCache) {
+                const p = productosCache[key];
+                const textBarcode = p.codigoBarras ? `<br><small style="color:#888;">${p.codigoBarras}</small>` : '';
+                container.innerHTML += `
+                    <div class="prod-item caja-item-card" data-name="${p.nombre.toLowerCase()}" onclick="agregarAlCarritoConMultiplicador('${key}', this)">
+                        <strong>${p.nombre}</strong>${textBarcode}<br>
+                        <span style="color:var(--success); font-weight:bold;">$${p.precio.toFixed(2)}</span><br>
+                        <small>Stock: ${parseFloat(p.stock.toFixed(3))}</small><br>
+                        <input type="number" class="input-field qty-input-box" value="1" min="0.001" step="0.001" onclick="event.stopPropagation()" style="width:75px; text-align:center; padding:3px; margin-top:5px; display:inline-block;">
+                    </div>
+                `;
+            }
+        }
+
+        window.procesarEscaneoBarcode = function() {
+    const barcodeInput = document.getElementById('caja-barcode-input');
+    const code = barcodeInput.value.trim();
+    if(!code) return;
+
+    let encontradoKey = null;
+    for(let key in productosCache) {
+        if(productosCache[key].codigoBarras === code) {
+            encontradoKey = key;
+            break;
+        }
+    }
+
+    if(encontradoKey) {
+        const prod = productosCache[encontradoKey];
+        if(prod.stock <= 0) {
+            alert("Producto agotado en el almacén.");
+            barcodeInput.value = '';
+            barcodeInput.focus();
+            return;
+        }
+        const existente = carrito.find(item => item.id === encontradoKey);
+        if(existente) {
+            if((existente.cantidad + 1) > prod.stock) {
+                alert("La cantidad seleccionada excede las existencias del inventario.");
+                barcodeInput.value = '';
+                barcodeInput.focus();
+                return;
+            }
+            existente.cantidad += 1;
+        } else {
+            carrito.push({ id: encontradoKey, nombre: prod.nombre, precio: prod.precio, cantidad: 1 });
+        }
+        actualizarTotalesCaja();
+        barcodeInput.value = '';
+        barcodeInput.focus();
+    } else {
+        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`)
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 1 && data.product) {
+                const nombreProd = data.product.product_name || `Producto Importado (${code})`;
+                if(confirm(`Encontrado en API pública: "${nombreProd}". ¿Desea indexarlo en almacén con precio inicial de $1.00 USD?`)) {
+                    const prodProvisional = { nombre: nombreProd, codigoBarras: code, precio: 1.00, stock: 10 };
+                    push(ref(db, 'almacen'), prodProvisional).then(() => {
+                        barcodeInput.value = '';
+                        barcodeInput.focus();
+                    });
+                }
+            } else {
+                alert(`El código "${code}" no está registrado en el inventario local ni en bases globales.`);
+                barcodeInput.value = '';
+                barcodeInput.focus();
+            }
+        })
+        .catch(() => {
+            alert(`Código "${code}" no localizado. Verifique o regístrelo en el módulo de Almacén.`);
+            barcodeInput.value = '';
+            barcodeInput.focus();
+        });
+    }
+};
+
+window.verificarClienteCaja = function(valor) {
+            const input = valor.trim();
+            const cajaInput = document.getElementById('caja-cliente');
+            
+            // Si el campo queda vacío, limpia el rastro de clientes anteriores para que asuma "EVENTUAL"
+            if(!input) {
+                cajaInput.removeAttribute('data-cedula');
+                return; 
+            }
+            
+            let encontrado = false;
+            let cliData = null;
+
+            for(let key in clientesCache) {
+                if(key === input || clientesCache[key].cedula === input || clientesCache[key].nombre.toLowerCase() === input.toLowerCase()) {
+                    encontrado = true;
+                    cliData = clientesCache[key];
+                    break;
+                }
+            }
+
+            if(encontrado) {
+                // Autocompleta inmediatamente el nombre si lo encuentra
+                cajaInput.value = cliData.nombre;
+                cajaInput.setAttribute('data-cedula', cliData.cedula);
+            } else {
+                // Abre modal para nuevo cliente si NO lo encuentra
+                document.getElementById('mod-cliente-cedula').value = input;
+                document.getElementById('mod-cliente-nombre').value = '';
+                document.getElementById('mod-cliente-telefono').value = '';
+                document.getElementById('mod-cliente-direccion').value = '';
+                document.getElementById('modal-nuevo-cliente').style.display = 'flex';
+                cajaInput.removeAttribute('data-cedula');
+            }
+        };        
+
+window.cerrarModalCliente = function() {
+            document.getElementById('modal-nuevo-cliente').style.display = 'none';
+        };
+
+        window.guardarNuevoCliente = function() {
+            const cedula = document.getElementById('mod-cliente-cedula').value.trim();
+            const nombre = document.getElementById('mod-cliente-nombre').value.trim().toUpperCase(); // Lo guardamos en mayúsculas para mantener orden
+            const telefono = document.getElementById('mod-cliente-telefono').value.trim();
+            const direccion = document.getElementById('mod-cliente-direccion').value.trim();
+
+            if(!nombre || !cedula) {
+                return alert("El nombre y la cédula son datos obligatorios.");
+            }
+
+            // Bloqueamos el botón temporalmente para evitar doble clic
+            const btn = event.target;
+            const textoOriginal = btn.innerText;
+            btn.innerText = "Guardando...";
+            btn.disabled = true;
+
+            const cliData = { cedula, nombre, telefono, direccion };
+
+            // Subimos los datos a la base de datos de Firebase
+            set(ref(db, `clientes/${cedula}`), cliData).then(() => {
+                // Autocompletamos la caja de cobro para facturar de inmediato
+                const cajaInput = document.getElementById('caja-cliente');
+                cajaInput.value = nombre;
+                cajaInput.setAttribute('data-cedula', cedula);
+                
+                // Restauramos el botón y cerramos el modal
+                btn.innerText = textoOriginal;
+                btn.disabled = false;
+                cerrarModalCliente();
+                
+            }).catch(error => {
+                alert("Error al guardar cliente en Firebase: " + error.message);
+                btn.innerText = textoOriginal;
+                btn.disabled = false;
+            });
+        };
+
+window.filtrarProductosCaja = function() {
+            const val = document.getElementById('caja-buscar-prod').value.toLowerCase();
+            document.querySelectorAll('.caja-item-card').forEach(card => {
+                card.style.display = card.getAttribute('data-name').includes(val) ? '' : 'none';
+            });
+        };
+
+        window.procesarPagoBDV = function() {
+            if(carrito.length === 0) return alert("El carrito está vacío. Seleccione productos antes de intentar pagar.");
+            
+            const totalBsText = document.getElementById('total-bs').innerText;
+            const totalBs = parseFloat(totalBsText) || 0;
+            
+            if(totalBs <= 0) return alert("El total a pagar es inválido.");
+
+            const montoPagar = totalBs.toFixed(2);
+            const linkBase = "https://bdvdigital.banvenez.com/pagomovil?id=V19978103&phone=584124645195&bank=0102&description=9dxBliWt4XnVSB0LTqNasQ%3D%3D&amount=";
+            const urlFinal = linkBase + montoPagar;
+            
+            if (/android/i.test(navigator.userAgent)) {
+                const intentUrl = "intent://bdvdigital.banvenez.com/pagomovil?id=V19978103&phone=584124645195&bank=0102&description=9dxBliWt4XnVSB0LTqNasQ%3D%3D&amount=" + montoPagar + "#Intent;scheme=https;end";
+                window.location.href = intentUrl;
+            } else {
+                const a = document.createElement('a');
+                a.href = urlFinal;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        };
+
+        window.toggleCamposCajaCondicion = function() {
+    const cond = document.getElementById('caja-condicion-pago').value;
+    const isEfectivo = document.getElementById('caja-check-efectivo').checked;
+    const wrapper = document.getElementById('wrapper-valores-contado');
+    const abonoContainer = document.getElementById('caja-monto-abono-container');
+    const lblOpcional = document.getElementById('caja-comprobante-opcional');
+
+    const bloqueRef = document.getElementById('bloque-referencia');
+    const bloqueEfe = document.getElementById('bloque-efectivo');
+
+    if (cond === 'contado-sin-desc' || cond === 'contado') {
+        wrapper.style.display = 'block';
+        
+        if (isEfectivo) {
+            bloqueRef.style.display = 'none';
+            bloqueEfe.style.display = 'block';
+            lblOpcional.innerText = "(Opcional)"; 
+        } else {
+            bloqueRef.style.display = 'block';
+            bloqueEfe.style.display = 'none';
+            lblOpcional.innerText = cond === 'contado' ? "(Obligatorio)" : "(Opcional)";
+        }
+
+        if (cond === 'contado' && !isEfectivo) {
+            abonoContainer.style.display = 'block';
+        } else {
+            abonoContainer.style.display = 'none';
+        }
+    } else {
+        wrapper.style.display = 'none';
+    }
+    actualizarTotalesCaja();
+    calcularCambioEfectivo();
+};
+
+window.calcularCambioEfectivo = function() {
+    if(!document.getElementById('caja-check-efectivo').checked) return;
+    
+    const totalUsd = parseFloat(document.getElementById('total-usd').innerText) || 0;
+    const montoRecibido = parseFloat(document.getElementById('caja-monto-efectivo').value) || 0;
+    const moneda = document.getElementById('caja-moneda-efectivo').value;
+
+    let recibidoUsd = moneda === 'usd' ? montoRecibido : (montoRecibido / tasaBcv);
+    let cambioUsd = recibidoUsd - totalUsd;
+    if(cambioUsd < 0) cambioUsd = 0; 
+    let cambioBs = cambioUsd * tasaBcv;
+
+    document.getElementById('cambio-usd').innerText = cambioUsd.toFixed(2);
+    document.getElementById('cambio-bs').innerText = cambioBs.toFixed(2);
+};
+
+        window.agregarAlCarritoConMultiplicador = function(key, element) {
+            const prod = productosCache[key];
+            const qtyInput = element.querySelector('.qty-input-box');
+            const cantidadALlevar = parseFloat(qtyInput.value) || 1;
+
+            if(prod.stock <= 0) return alert("Producto agotado.");
+            if(cantidadALlevar > prod.stock) return alert(`No puedes añadir ${cantidadALlevar} unidades. El stock máximo disponible es ${prod.stock}.`);
+
+            const existente = carrito.find(item => item.id === key);
+            if(existente) {
+                if((existente.cantidad + cantidadALlevar) > prod.stock) return alert("La cantidad total seleccionada supera el stock disponible.");
+                existente.cantidad += cantidadALlevar;
+            } else {
+                carrito.push({ id: key, nombre: prod.nombre, precio: prod.precio, cantidad: cantidadALlevar });
+            }
+            
+            if(element) {
+                element.classList.remove('destello-ok'); 
+                void element.offsetWidth; 
+                element.classList.add('destello-ok'); 
+            }
+
+            try { 
+                const ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+                const osc = ctx.createOscillator(); 
+                const gain = ctx.createGain(); 
+                osc.connect(gain); gain.connect(ctx.destination); 
+                osc.type = 'sine'; osc.frequency.value = 1500; 
+                gain.gain.value = 0.1; 
+                osc.start(); osc.stop(ctx.currentTime + 0.1); 
+            } catch(e) {}
+            
+            qtyInput.value = 1; 
+            actualizarTotalesCaja();
+        };
+
+        window.procesarFacturacion = function() {
+            try {
+                if(carrito.length === 0) return alert("La caja está vacía.");
+                const clienteInput = document.getElementById('caja-cliente');
+                const cliente = clienteInput.value.trim() || "EVENTUAL";
+                const cedulaCliente = clienteInput.getAttribute('data-cedula') || "No registrada";
+                const condicion = document.getElementById('caja-condicion-pago').value;
+                
+                let referencia = "Ninguna";
+                let abonoInicialBs = 0;
+                let fileInput = document.getElementById('caja-comprobante-file');
+
+                let subtotalBrutoUsd = carrito.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+                let descPorc = subtotalBrutoUsd > 2000 ? 0.08 : (condicion === 'contado-sin-desc' ? 0.00 : (condicion === 'contado' ? 0.07 : (condicion === '15dias' ? 0.05 : 0.03)));
+                
+                let baseImponibleBrutaUsd = 0;
+                if(configCache.ivaActivo) {
+                    carrito.forEach((item) => {
+                        const esExento = productosCache[item.id] ? productosCache[item.id].exento : false;
+                        if(!esExento) baseImponibleBrutaUsd += (item.precio * item.cantidad);
+                    });
+                }
+
+                let totalDescuentoUsd = subtotalBrutoUsd * descPorc;
+                let subtotalConDescuentoUsd = subtotalBrutoUsd - totalDescuentoUsd;
+                let totalIvaUsd = (baseImponibleBrutaUsd * (1 - descPorc)) * 0.16;
+
+                let totalNetoUsd = subtotalConDescuentoUsd + totalIvaUsd;
+                let totalNetoBs = totalNetoUsd * tasaBcv;
+                let totalCantidades = parseFloat(carrito.reduce((acc, i) => acc + i.cantidad, 0).toFixed(3));
+
+                let isEfectivo = document.getElementById('caja-check-efectivo') ? document.getElementById('caja-check-efectivo').checked : false;
+
+                if(condicion === 'contado' || condicion === 'contado-sin-desc') {
+                    if (isEfectivo) {
+                        referencia = "EFECTIVO";
+                        abonoInicialBs = totalNetoBs; 
+                        
+                        let recibido = parseFloat(document.getElementById('caja-monto-efectivo').value) || 0;
+                        if (recibido <= 0) return alert("Debe ingresar la cantidad de efectivo recibida por el cliente.");
+                        
+                        let moneda = document.getElementById('caja-moneda-efectivo').value;
+                        let recibidoUsd = moneda === 'usd' ? recibido : (recibido / tasaBcv);
+                        
+                        if (recibidoUsd < totalNetoUsd - 0.05) {
+                            return alert("El monto en efectivo ingresado es menor al total de la factura. Falta dinero.");
+                        }
+                    } else {
+                        referencia = document.getElementById('caja-referencia').value.trim();
+                        
+                        if(!referencia) return alert("⚠️ Falta el número de referencia (los últimos 5 dígitos del comprobante) para procesar el pedido.");
+                        if(referencia.length !== 5) return alert("⚠️ La referencia bancaria debe tener exactamente 5 dígitos.");
+
+                        if (condicion === 'contado') {
+                            abonoInicialBs = parseFloat(document.getElementById('caja-monto-abono-bs').value) || 0;
+                            if(abonoInicialBs <= 0) return alert("Debe ingresar el monto del abono para liquidar la factura.");
+                            if(!fileInput.files[0]) return alert("Debe adjuntar la imagen del comprobante de pago.");
+                            if(Math.abs(abonoInicialBs - totalNetoBs) > 0.1) {
+                                return alert(`Para facturar, el abono (${abonoInicialBs.toFixed(2)} Bs) debe ser igual al total (${totalNetoBs.toFixed(2)} Bs).`);
+                            }
+                        } else if (condicion === 'contado-sin-desc') {
+                            abonoInicialBs = totalNetoBs; 
+                        }
+                    }
+                }
+
+                if(!isEfectivo && referencia !== "Ninguna" && esReferenciaInvalidaODuplicada(referencia)) {
+                    return alert("ERROR: Esta referencia de 5 dígitos ya se encuentra registrada en el historial.");
+                }
+
+                const btnProcesar = document.getElementById('btn-procesar-factura');
+                const textoOriginalBtn = btnProcesar.innerHTML; 
+                
+                btnProcesar.disabled = true;
+                btnProcesar.style.opacity = '0.8';
+                btnProcesar.style.cursor = 'wait';
+                btnProcesar.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <span>⏳ PROCESANDO TRANSACCIÓN...</span>
+                        <div style="width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spinLoading 1s ease-in-out infinite;"></div>
+                    </div>
+                `;
+
+                encodeImageToBase64(fileInput, (base64Img) => {
+                    const timestamp = new Date().toLocaleString('es-VE');
+
+                    let dirCliente = "";
+                    let telCliente = "";
+                    let latCliente = null;
+                    let lngCliente = null;
+                    
+                    if(rolActivo === 'cliente') {
+                        // El cliente no tiene permiso de leer la base de datos general, así que extraemos sus datos directo de su pestaña "Mi Perfil"
+                        dirCliente = document.getElementById('perf-dir').value.trim();
+                        telCliente = document.getElementById('perf-tel').value.trim();
+                        latCliente = document.getElementById('perf-lat').value || null;
+                        lngCliente = document.getElementById('perf-lng').value || null;
+                    } else if (cedulaCliente && clientesCache[cedulaCliente]) {
+                        // Los vendedores y administradores sí tienen acceso a la memoria caché de los clientes
+                        dirCliente = clientesCache[cedulaCliente].direccion || "";
+                        telCliente = clientesCache[cedulaCliente].telefono || "";
+                        latCliente = clientesCache[cedulaCliente].latitud || null;
+                        lngCliente = clientesCache[cedulaCliente].longitud || null;
+                    }
+
+                    runTransaction(ref(db, 'contadorNotas'), (current) => {
+                        return (current || 0) + 1;
+                    }).then((result) => {
+                        let nFactura = "0000001";
+                        if (result && result.snapshot && result.snapshot.val()) {
+                            nFactura = result.snapshot.val().toString().padStart(7, '0');
+                        }
+
+                        const nuevaFacturaObj = {
+                            numero: nFactura,
+                            vendedor: usuarioActivo || "Sistema Web",
+                            cliente: cliente,
+                            cedulaCliente: cedulaCliente,
+                            direccionCliente: dirCliente,
+                            telefonoCliente: telCliente,
+                            latitudCliente: latCliente,
+                            longitudCliente: lngCliente,
+                            condicion: condicion,
+                            referencia: referencia,
+                            fecha: timestamp,
+                            items: carrito,
+                            descuento: (descPorc * 100) + "%",
+                            totalBrutoUsd: subtotalBrutoUsd,
+                            totalDescuentoUsd: totalDescuentoUsd,
+                            totalIvaUsd: totalIvaUsd,
+                            totalUsd: totalNetoUsd,
+                            totalBs: totalNetoBs,
+                            tasa: tasaBcv,
+                            totalCantidades: totalCantidades,
+                            abonos: [],
+                            esPedidoCliente: (rolActivo === 'cliente'), 
+                            estadoDespacho: (rolActivo === 'cliente' ? 'pendiente' : 'entregado') 
+                        };
+
+                        if(condicion === 'contado' || condicion === 'contado-sin-desc') {
+                            nuevaFacturaObj.abonos.push({
+                                montoBs: abonoInicialBs,
+                                montoUsd: totalNetoUsd,
+                                referencia: referencia,
+                                fechaAbono: timestamp,
+                                imgBase64: base64Img || ""
+                            });
+                        }
+
+                        carrito.forEach(item => {
+                            if (productosCache[item.id]) {
+                                const stockActualizado = productosCache[item.id].stock - item.cantidad;
+                                set(ref(db, `almacen/${item.id}/stock`), stockActualizado);
+                            }
+                        });
+
+                        push(ref(db, 'facturas'), nuevaFacturaObj).then(() => {
+                            if (cedulaCliente && cedulaCliente !== "No registrada" && !clientesCache[cedulaCliente]) {
+                                const cliData = { cedula: cedulaCliente, nombre: cliente, telefono: telCliente, direccion: dirCliente };
+                                set(ref(db, `clientes/${cedulaCliente}`), cliData).catch(e => console.log("Directorio:", e));
+                            }
+
+                            if (rolActivo === 'cliente') {
+                                document.getElementById('modal-compra-exitosa').style.display = 'flex';
+                                limpiarCaja();
+                                if(personalCache[usuarioKeyActivo] && personalCache[usuarioKeyActivo].perfil) {
+                                    document.getElementById('caja-cliente').value = personalCache[usuarioKeyActivo].perfil.nombre;
+                                    document.getElementById('caja-cliente').setAttribute('data-cedula', personalCache[usuarioKeyActivo].perfil.cedula);
+                                }
+                            } else {
+                                imprimirFacturaCarta(nuevaFacturaObj);
+                                limpiarCaja();
+                            }
+
+                            btnProcesar.disabled = false;
+                            btnProcesar.style.opacity = '1';
+                            btnProcesar.style.cursor = 'pointer';
+                            btnProcesar.innerHTML = textoOriginalBtn;
+                            
+                        }).catch(error => {
+                            alert("❌ Error al guardar el pedido en la Base de Datos: " + error.message);
+                            btnProcesar.disabled = false;
+                            btnProcesar.style.opacity = '1';
+                            btnProcesar.style.cursor = 'pointer';
+                            btnProcesar.innerHTML = textoOriginalBtn;
+                        });
+                    }).catch((errorTransaccion) => {
+                        alert("❌ Firebase bloqueó el contador de notas. Verifica las reglas de seguridad: " + errorTransaccion.message);
+                        btnProcesar.disabled = false;
+                        btnProcesar.style.opacity = '1';
+                        btnProcesar.style.cursor = 'pointer';
+                        btnProcesar.innerHTML = textoOriginalBtn;
+                    });
+                });
+
+            } catch (err) {
+                alert("❌ Ocurrió un error en el código antes de enviar:\n" + err.message);
+                const btnProcesar = document.getElementById('btn-procesar-factura');
+                if (btnProcesar) {
+                    btnProcesar.disabled = false;
+                    btnProcesar.style.opacity = '1';
+                    btnProcesar.style.cursor = 'pointer';
+                    btnProcesar.innerText = rolActivo === 'cliente' ? '🛒 ENVIAR PEDIDO' : 'GENERAR & IMPRIMIR NOTA';
+                }
+            }
+        };
+        function imprimirFacturaCarta(f) {
+            if(configCache.logo) {
+                document.getElementById('tk-logo').src = configCache.logo;
+                document.getElementById('tk-logo').style.display = "block";
+            }
+            document.getElementById('tk-empresa').innerText = configCache.nombre || "Nuestra Empresa C.A.";
+            document.getElementById('tk-rif').innerText = configCache.rif || "J-0000000";
+            document.getElementById('tk-dir').innerText = configCache.direccion || "Ubicación";
+            document.getElementById('tk-tel').innerText = configCache.contacto || "Contacto";
+
+            document.getElementById('tk-num').innerText = f.numero;
+            document.getElementById('tk-fecha').innerText = f.fecha;
+            document.getElementById('tk-vend').innerText = f.vendedor;
+            document.getElementById('tk-cliente-name').innerText = f.cliente;
+            document.getElementById('tk-condicion').innerText = f.condicion.toUpperCase();
+            document.getElementById('tk-ref').innerText = f.referencia;
+            document.getElementById('tk-tasa').innerText = f.tasa.toFixed(2);
+            document.getElementById('tk-total-cantidades').innerText = f.totalCantidades;
+
+            const tbody = document.getElementById('tk-items-tabla');
+            tbody.innerHTML = '';
+            f.items.forEach(i => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${parseFloat(i.cantidad.toFixed(3))}</td>
+                        <td>${i.nombre}</td>
+                        <td>$${i.precio.toFixed(2)}</td>
+                        <td>$${(i.precio * i.cantidad).toFixed(2)}</td>
+                        <td>${(i.precio * i.cantidad * f.tasa).toFixed(2)} Bs</td>
+                    </tr>
+                `;
+            });
+
+            let brutoUsd = f.totalBrutoUsd || f.totalUsd;
+            let descUsd = f.totalDescuentoUsd || 0;
+            let brutoBs = brutoUsd * f.tasa;
+            let descBs = descUsd * f.tasa;
+
+            document.getElementById('tk-bruto-calc').innerText = `$${brutoUsd.toFixed(2)} | ${brutoBs.toFixed(2)} Bs`;
+            document.getElementById('tk-desc-calc').innerText = `-$${descUsd.toFixed(2)} | -${descBs.toFixed(2)} Bs (${f.descuento})`;
+            
+            const ivaDiv = document.getElementById('tk-iva-line');
+            if(f.totalIvaUsd && f.totalIvaUsd > 0) {
+                ivaDiv.style.display = 'block';
+                document.getElementById('tk-iva-calc').innerText = `$${f.totalIvaUsd.toFixed(2)} | ${(f.totalIvaUsd * f.tasa).toFixed(2)} Bs`;
+            } else {
+                ivaDiv.style.display = 'none';
+            }
+
+            document.getElementById('tk-total-usd').innerText = f.totalUsd.toFixed(2);
+            document.getElementById('tk-total-bs').innerText = f.totalBs.toFixed(2);
+
+            setTimeout(() => { window.print(); }, 400);
+        }
+
+        // --- PESTAÑA HISTORIAL Y ABONOS ---
+        window.renderizarFacturasHistorico = function() {
+            const container = document.getElementById('lista-facturas-historico');
+            if (!container) return;
+            
+            // Leemos qué está buscando el usuario para filtrar directamente en la memoria
+            const buscadorVal = document.getElementById('factura-buscador') ? document.getElementById('factura-buscador').value.toLowerCase().trim() : '';
+            
+            let totalComisionesGeneradas = 0;
+            let countPendientes = 0;
+            let listaPendientesHTML = "";
+
+            const facturasInvertidas = Object.keys(facturasCache).reverse();
+            
+            // 🚀 ESTA ES LA CLAVE: Acumular todo en texto en vez de dibujar en pantalla a cada rato
+            let facturasHTML = ""; 
+            
+            // Límite inteligente: Si no está buscando nada, carga solo las últimas 50 facturas. Si busca algo, permite escanear todo el historial.
+            let limiteRender = buscadorVal === '' ? 50 : 9999; 
+            let mostradas = 0;
+
+            for(let key of facturasInvertidas) {
+                const f = facturasCache[key];
+                
+                if(rolActivo === 'vendedor' && f.vendedor !== usuarioActivo) continue;
+                if(rolActivo === 'cliente' && f.cedulaCliente !== cedulaActiva) continue;
+
+                // FILTRO DIRECTO DE BÚSQUEDA SÚPER RÁPIDO
+                if (buscadorVal !== '') {
+                    const refSearch = f.referencia ? f.referencia.toLowerCase() : "";
+                    const vendSearch = f.vendedor ? f.vendedor.toLowerCase() : "";
+                    const numSearch = f.numero ? f.numero.toLowerCase() : "";
+                    
+                    if (!numSearch.includes(buscadorVal) && !vendSearch.includes(buscadorVal) && !refSearch.includes(buscadorVal)) {
+                        continue;
+                    }
+                }
+
+                let totalAbonadoUsd = 0;
+                if(f.abonos) {
+                    f.abonos.forEach(ab => { totalAbonadoUsd += ab.montoUsd || (ab.montoBs / (f.tasa || 1)); });
+                }
+                
+                let saldoRestanteUsd = f.totalUsd - totalAbonadoUsd;
+                let estaPagada = saldoRestanteUsd <= 0.05; 
+
+                let badgeComision = "";
+                if(estaPagada && configCache.comisionesActivas) {
+                    let comision = f.totalUsd * 0.10; 
+                    totalComisionesGeneradas += comision;
+                    badgeComision = `<br><span style="color:var(--success); font-weight:bold; font-size:12px;">💰 Comisión: $${comision.toFixed(2)}</span>`;
+                }
+
+                const totalBsDinamico = f.totalUsd * tasaBcv;
+                let esPendiente = (f.esPedidoCliente && f.estadoDespacho === 'pendiente');
+                
+                // Los pedidos pendientes siempre se guardan para la campana de alertas
+                if(esPendiente && rolActivo !== 'cliente') {
+                    countPendientes++;
+                    listaPendientesHTML += `
+                        <div style="background:#fff3cd; padding:12px; border-left:5px solid var(--danger); margin-bottom:10px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s;" onclick="verDetalleFactura('${key}')">
+                            <div>
+                                <strong style="color:var(--danger); font-size:16px;">N° ${f.numero}</strong> - <b>${f.cliente}</b><br>
+                                <small>Total Compra: $${f.totalUsd.toFixed(2)} | Fecha: ${f.fecha}</small>
+                            </div>
+                            <button class="btn btn-success" style="font-size:13px; padding:8px 15px; font-weight:bold;" onclick="event.stopPropagation(); marcarComoDespachado('${key}')">📦 MARCAR COMO DESPACHADO</button>
+                        </div>
+                    `;
+                }
+
+                let borderColor = estaPagada ? 'var(--success)' : 'var(--primary)';
+                let bgColor = '';
+                let btnDespacharHtml = '';
+
+                if(esPendiente) {
+                    borderColor = 'var(--danger)';
+                    bgColor = 'background-color: #ffe6e6;'; 
+                    if(rolActivo !== 'cliente') {
+                        btnDespacharHtml = `<div style="margin-top:8px;"><button class="btn btn-danger" style="font-size:11px; padding:5px 10px; animation: pulse-compra 1.5s infinite;" onclick="event.stopPropagation(); marcarComoDespachado('${key}')">🚨 PEDIDO PENDIENTE: DESPACHAR</button></div>`;
+                    } else {
+                        btnDespacharHtml = `<div style="margin-top:8px;"><span class="badge" style="background:var(--danger); color: white; padding: 3px 8px; border-radius: 12px; font-size:12px;">⏳ PROCESANDO ENVÍO</span></div>`;
+                    }
+                } else if (f.esPedidoCliente && f.estadoDespacho === 'despachado') {
+                     if(rolActivo === 'cliente') {
+                         btnDespacharHtml = `<div style="margin-top:8px;"><span class="badge" style="background:var(--success); color: white; padding: 3px 8px; border-radius: 12px; font-size:12px;">✅ PEDIDO DESPACHADO</span></div>`;
+                     } else {
+                         btnDespacharHtml = `<div style="margin-top:8px;"><span class="badge" style="background:var(--success); color: white; padding: 3px 8px; border-radius: 12px; font-size:11px;">✅ Despachado al Cliente</span></div>`;
+                     }
+                }
+
+                let marginTopTotal = estaPagada ? '-30px' : '-15px';
+                if(btnDespacharHtml !== '') marginTopTotal = '-35px';
+
+                // 🔥 Solo acumulamos el código HTML si estamos dentro del límite (50) o si urge mostrarlo (Pedido pendiente)
+                if (mostradas < limiteRender || esPendiente) {
+                    facturasHTML += `
+                        <div class="card item-factura-row" style="cursor:pointer; border-left:5px solid ${borderColor}; ${bgColor}" onclick="verDetalleFactura('${key}')">
+                            <strong>${f.numero}</strong> | Cliente: ${f.cliente}<br>
+                            <small>Vendedor: ${f.vendedor} | Refs: ${f.referencia}</small>
+                            ${badgeComision}
+                            ${btnDespacharHtml}
+                            <div style="text-align:right; font-weight:bold; margin-top:${marginTopTotal};">
+                                $${f.totalUsd.toFixed(2)} <br><span style="font-size:12px; color:#666;">${totalBsDinamico.toFixed(2)} Bs</span>
+                            </div>
+                        </div>
+                    `;
+                    mostradas++;
+                }
+            }
+
+            // 🚀 INYECCIÓN MASIVA: Dibuja toda la pantalla de un solo golpe. 100x más rápido.
+            container.innerHTML = facturasHTML;
+
+            if(document.getElementById('panel-comisiones')) {
+                if (configCache.comisionesActivas) {
+                    document.getElementById('panel-comisiones').style.display = 'block';
+                    document.getElementById('comision-porcentaje-display').innerText = 10;
+                    document.getElementById('total-comisiones-usd').innerText = `$${totalComisionesGeneradas.toFixed(2)}`;
+                    document.getElementById('total-comisiones-bs').innerText = `${(totalComisionesGeneradas * tasaBcv).toFixed(2)} Bs`;
+                } else {
+                    document.getElementById('panel-comisiones').style.display = 'none';
+                }
+            }
+
+            const btnNotif = document.getElementById('btn-notif-pedidos');
+            const badgeNotif = document.getElementById('badge-pedidos-count');
+            const listaModal = document.getElementById('lista-modal-pedidos');
+
+            if(btnNotif && badgeNotif && listaModal) {
+                if(countPendientes > 0 && rolActivo !== 'cliente') {
+                    btnNotif.style.display = 'inline-block';
+                    badgeNotif.innerText = countPendientes;
+                    listaModal.innerHTML = listaPendientesHTML;
+                } else {
+                    btnNotif.style.display = 'none';
+                    listaModal.innerHTML = '<p style="text-align:center; color:#666; font-size: 15px; margin-top: 20px;">No hay pedidos pendientes por despachar en este momento.</p>';
+                }
+            }
+        };
+
+        window.filtrarFacturasHistorico = function() {
+            // Al escribir en el buscador, mandamos a cargar la lista filtrada de nuevo
+            renderizarFacturasHistorico();
+        };
+
+        window.verDetalleFactura = function(key) {
+            idFacturaSeleccionada = key;
+            const f = facturasCache[key];
+            
+            const modalPendientes = document.getElementById('modal-pedidos-pendientes');
+            if(modalPendientes) modalPendientes.style.display = 'none';
+
+            switchTab('tab-facturas');
+
+            const detalleCard = document.getElementById('detalle-factura-card');
+            detalleCard.style.zIndex = '10005';
+            detalleCard.style.display = 'flex';
+
+            let itemsList = "";
+            f.items.forEach(i => {
+                let subtotalArticulo = i.precio * i.cantidad;
+                itemsList += `<li style="margin-bottom: 5px;">${i.cantidad}x ${i.nombre} - <b style="color: var(--success);">$${subtotalArticulo.toFixed(2)}</b> <span style="color: #666; font-size: 12px;">(P. Unitario: $${i.precio.toFixed(2)})</span></li>`;
+            });
+
+            const totalFacturaBsDinamico = f.totalUsd * tasaBcv;
+
+            let mapaGPSHTML = "";
+            if (f.latitudCliente && f.longitudCliente) {
+                const mapUrl = `https://maps.google.com/maps?q=${f.latitudCliente},${f.longitudCliente}&hl=es&z=17&output=embed`;
+                mapaGPSHTML = `
+                    <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                        <b style="color: var(--danger); font-size: 15px;">📍 UBICACIÓN EXACTA DEL CLIENTE (GPS):</b>
+                        <div style="margin-top: 8px; border-radius: 8px; overflow: hidden; border: 2px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                            <iframe width="100%" height="250" frameborder="0" style="border:0" src="${mapUrl}" allowfullscreen></iframe>
+                        </div>
+                        <a href="https://www.google.com/maps?q=${f.latitudCliente},${f.longitudCliente}" target="_blank" class="btn" style="background: #17a2b8; color: white; display: block; text-align: center; font-size: 14px; margin-top: 8px; padding: 8px; text-decoration: none; font-weight: bold;">🗺️ Abrir Navegación en Google Maps</a>
+                    </div>
+                `;
+            }
+
+            document.getElementById('detalle-contenido').innerHTML = `
+                <div style="background: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+                        👤 Datos de Envío / Cliente
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div><b>Nombre:</b><br>${f.cliente}</div>
+                        <div><b>Cédula/ID:</b><br>${f.cedulaCliente || 'No registrada'}</div>
+                        <div><b>Teléfono:</b><br>${f.telefonoCliente || 'No registrado'}</div>
+                        <div style="grid-column: 1 / -1;"><b>Dirección Textual:</b><br>${f.direccionCliente || 'No registrada'}</div>
+                    </div>
+                    ${mapaGPSHTML}
+                </div>
+                
+                <div style="background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 15px;">
+                    <p style="margin: 3px 0; font-size: 13px;"><b>📝 N° Documento:</b> ${f.numero}</p>
+                    <p style="margin: 3px 0; font-size: 13px;"><b>📅 Fecha Emisión:</b> ${f.fecha}</p>
+                    <p style="margin: 3px 0; font-size: 13px;"><b>💳 Condición de Pago:</b> ${f.condicion.toUpperCase()}</p>
+                    <p style="margin: 3px 0; font-size: 13px;"><b>🏦 Ref. Bancaria:</b> ${f.referencia}</p>
+                    <p style="margin: 3px 0; font-size: 13px;"><b>🏷️ Descuentos:</b> ${f.descuento} (Tasa: ${f.tasa.toFixed(2)} Bs)</p>
+                </div>
+                ${f.totalIvaUsd > 0 ? `<p><b>IVA (16%):</b> $${f.totalIvaUsd.toFixed(2)} (${(f.totalIvaUsd * f.tasa).toFixed(2)} Bs)</p>` : ''}
+                <ul>${itemsList}</ul>
+                <p><b>Monto Total Neto:</b> $${f.totalUsd.toFixed(2)} (${totalFacturaBsDinamico.toFixed(2)} Bs)</p>
+            `;
+
+            let totalAbonadoUsd = 0;
+            if(f.abonos) {
+                f.abonos.forEach(ab => {
+                    totalAbonadoUsd += ab.montoUsd || (ab.montoBs / (f.tasa || 1));
+                });
+            }
+
+            let saldoRestanteUsd = f.totalUsd - totalAbonadoUsd;
+            if(saldoRestanteUsd < 0) saldoRestanteUsd = 0;
+            let saldoRestanteBs = saldoRestanteUsd * tasaBcv;
+
+            document.getElementById('abono-saldo-restante-bs').innerText = saldoRestanteBs.toFixed(2);
+            document.getElementById('abono-saldo-restante-usd').innerText = saldoRestanteUsd.toFixed(2);
+
+            const comisionBox = document.getElementById('status-comision-factura');
+            if(configCache.comisionesActivas) {
+                if(saldoRestanteUsd <= 0.05) {
+                    let comision = f.totalUsd * 0.10;
+                    comisionBox.innerHTML = `
+                        <div style="background: #d4edda; padding: 10px; border-radius: 4px; border: 1px solid #c3e6cb; margin-bottom: 15px;">
+                            <strong style="color: #155724;">✅ Nota Totalmente Pagada</strong><br>
+                            <span style="color: #155724;">Comisión Generada para <b>${f.vendedor}</b> (10%): <b>$${comision.toFixed(2)}</b> | <b>${(comision * tasaBcv).toFixed(2)} Bs</b></span>
+                        </div>`;
+                } else {
+                    comisionBox.innerHTML = `
+                        <div style="background: #e2e3e5; padding: 10px; border-radius: 4px; color: #383d41; margin-bottom: 15px; font-size: 13px; border: 1px solid #d6d8db;">
+                            ⏳ La comisión de esta nota se liberará automáticamente cuando el saldo restante sea $0.00.
+                        </div>`;
+                }
+            } else {
+                comisionBox.innerHTML = ''; 
+            }
+
+            const compContainer = document.getElementById('lista-comprobantes-adjuntos');
+            compContainer.innerHTML = '';
+            if(f.abonos) {
+                f.abonos.forEach(ab => {
+                    let imgHtml = ab.imgBase64 ? `<img src="${ab.imgBase64}" style="width:60px; height:60px; object-fit:cover; border-radius:4px; cursor:zoom-in;" onclick="abrirLightboxZoom('${ab.imgBase64}')">` : `<span style="font-size:24px;">📄</span>`;
+                    compContainer.innerHTML += `
+                        <div style="background:#f8f9fa; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:11px; text-align:center;">
+                            ${imgHtml}<br>
+                            <b>Ref: ${ab.referencia}</b><br>
+                            ${ab.montoBs.toFixed(2)} Bs<br>($${(ab.montoUsd || (ab.montoBs / (f.tasa || 1))).toFixed(2)})
+                        </div>
+                    `;
+                });
+            }
+        };
+
+        window.calcularEquivalenteAbono = function() {
+            const bs = parseFloat(document.getElementById('abono-monto-bs').value) || 0;
+            const equivalenteUsd = bs / tasaBcv;
+            document.getElementById('abono-monto-usd').value = `$ ${equivalenteUsd.toFixed(2)}`;
+        };
+
+        window.registrarNuevoAbono = function() {
+            if(!idFacturaSeleccionada) return alert("Seleccione una nota de entrega.");
+            const montoBs = parseFloat(document.getElementById('abono-monto-bs').value);
+            const referencia = document.getElementById('abono-ref-num').value.trim();
+            const fileInput = document.getElementById('abono-file');
+
+            if(isNaN(montoBs) || montoBs <= 0 || !referencia) {
+                return alert("Coloque un monto de abono válido y el número de referencia bancaria.");
+            }
+
+            if(referencia.length !== 5) {
+                return alert("La referencia debe tener exactamente 5 dígitos numéricos.");
+            }
+
+            if(esReferenciaInvalidaODuplicada(referencia)) {
+                return alert("ERROR: Esta referencia ya existe del historial.");
+            }
+
+            let f = facturasCache[idFacturaSeleccionada];
+            
+            let totalAbonadoUsd = 0;
+            if(f.abonos) {
+                f.abonos.forEach(ab => {
+                    totalAbonadoUsd += ab.montoUsd || (ab.montoBs / (f.tasa || 1));
+                });
+            }
+            let saldoRestanteUsd = f.totalUsd - totalAbonadoUsd;
+            let montoUsdAbono = montoBs / tasaBcv;
+
+            if(montoUsdAbono > (saldoRestanteUsd + 0.02)) {
+                return alert(`El abono de ${montoBs.toFixed(2)} Bs equivale a $${montoUsdAbono.toFixed(2)}, lo cual excede el saldo restante real indexado en dólares ($${saldoRestanteUsd.toFixed(2)}).`);
+            }
+
+            encodeImageToBase64(fileInput, (base64) => {
+                if(!f.abonos) f.abonos = [];
+
+                const nuevoAbonoNode = {
+                    montoBs,
+                    montoUsd: montoUsdAbono,
+                    referencia,
+                    fechaAbono: new Date().toLocaleString('es-VE'),
+                    imgBase64: base64
+                };
+
+                f.abonos.push(nuevoAbonoNode);
+
+                if(!f.referencia || f.referencia === "Ninguna") {
+                    f.referencia = referencia;
+                } else {
+                    f.referencia = f.referencia + " - " + referencia;
+                }
+
+                const loadingContainer = document.getElementById('abono-loading-container');
+                const loadingBar = document.getElementById('abono-loading-bar');
+                
+                loadingContainer.style.display = 'block';
+                let progreso = 0;
+                
+                const intervalo = setInterval(() => {
+                    progreso += 10;
+                    loadingBar.style.width = progreso + "%";
+                    loadingBar.innerText = progreso + "%";
+
+                    if(progreso >= 100) {
+                        clearInterval(intervalo);
+                        
+                        set(ref(db, `facturas/${idFacturaSeleccionada}`), f).then(() => {
+                            alert("ABONO REGISTRADO CON ÉXITO");
+                            loadingContainer.style.display = 'none';
+                            loadingBar.style.width = "0%";
+                            
+                            document.getElementById('abono-monto-bs').value = '';
+                            document.getElementById('abono-monto-usd').value = '';
+                            document.getElementById('abono-ref-num').value = '';
+                            document.getElementById('abono-file').value = '';
+                            verDetalleFactura(idFacturaSeleccionada);
+                        });
+                    }
+                }, 100);
+            });
+        };
+
+        window.reimprimirFacturaSeleccionada = function() {
+            if(!idFacturaSeleccionada) return alert("Seleccione una nota de entrega.");
+            imprimirFacturaCarta(facturasCache[idFacturaSeleccionada]);
+        };
+
+        window.descargarFacturaArchivoLocal = function() {
+            if(!idFacturaSeleccionada) return alert("Seleccione una nota de entrega.");
+            const f = facturasCache[idFacturaSeleccionada];
+            
+            let brutoUsd = f.totalBrutoUsd || f.totalUsd;
+            let descUsd = f.totalDescuentoUsd || 0;
+            let brutoBs = brutoUsd * f.tasa;
+            let descBs = descUsd * f.tasa;
+            
+            let logoHtml = configCache.logo ? `<img src="${configCache.logo}" style="max-height: 70px; margin-bottom: 10px;">` : '';
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Nota_Entrega_${f.numero}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; background: #525659; display: flex; justify-content: center; padding: 20px; margin: 0; }
+                        .factura-carta { width: 215mm; min-height: 279mm; padding: 20mm; background: white; box-sizing: border-box; font-size: 14px; line-height: 1.5; color: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+                        .factura-header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+                        .factura-totales-box { display: flex; justify-content: flex-end; margin-top: 30px; }
+                        .tabla-carta { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        .tabla-carta th { background: #f2f2f2; border: 1px solid #000; padding: 8px; text-align: left; }
+                        .tabla-carta td { border: 1px solid #000; padding: 8px; text-align: left; }
+                        @media print { body { background: white; padding: 0; display: block; } .factura-carta { box-shadow: none; width: 100%; min-height: auto; padding: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="factura-carta">
+                        <div class="factura-header">
+                            <div>
+                                ${logoHtml}
+                                <h2 style="margin:0;">${configCache.nombre || "Nuestra Empresa C.A."}</h2>
+                                <p style="margin:3px 0;">RIF: ${configCache.rif || "J-0000000"}</p>
+                                <p style="margin:3px 0;">Dirección: ${configCache.direccion || "Ubicación"}</p>
+                                <p style="margin:3px 0;">Telf: ${configCache.contacto || "Contacto"}</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <h2 style="color: #0056b3; margin:0;">NOTA DE ENTREGA</h2>
+                                <p style="font-size:16px; font-weight:bold; margin:5px 0;">N°: ${f.numero}</p>
+                                <p style="margin:3px 0;">Fecha: ${f.fecha}</p>
+                                <p style="margin:3px 0;">Vendedor: ${f.vendedor}</p>
+                                <p style="margin:3px 0;">Cliente: ${f.cliente}</p>
+                                <p style="margin:3px 0;">Condición: ${f.condicion.toUpperCase()}</p>
+                                <p style="margin:3px 0;">Ref Base: ${f.referencia}</p>
+                            </div>
+                        </div>
+                        <table class="tabla-carta">
+                            <thead>
+                                <tr><th>Cantidad</th><th>Descripción del Producto</th><th>Precio Unitario ($)</th><th>Subtotal ($)</th><th>Subtotal (Bs)</th></tr>
+                            </thead>
+                            <tbody>
+                                ${f.items.map(i => `<tr><td>${i.cantidad}</td><td>${i.nombre}</td><td>$${i.precio.toFixed(2)}</td><td>$${(i.precio * i.cantidad).toFixed(2)}</td><td>${(i.precio * i.cantidad * f.tasa).toFixed(2)} Bs</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                        <div class="factura-totales-box">
+                            <div style="width: 480px; font-size: 14px; text-align: right; line-height: 1.8;">
+                                <div>Total Productos Facturados: <span style="font-weight:bold;">${f.totalCantidades}</span></div>
+                                <div style="margin-top: 5px; border-top: 1px dotted #888; padding-top: 5px; color:#444;">
+                                    <div style="font-weight: bold;">Monto Total Bruto: $${brutoUsd.toFixed(2)} | ${brutoBs.toFixed(2)} Bs</div>
+                                    <div style="color: #dc3545;">Descuentos Deducidos: -$${descUsd.toFixed(2)} | -${descBs.toFixed(2)} Bs (${f.descuento})</div>
+                                    ${f.totalIvaUsd > 0 ? `<div style="font-weight: bold; margin-top: 2px;">IVA (16%): +$${f.totalIvaUsd.toFixed(2)} | +${(f.totalIvaUsd * f.tasa).toFixed(2)} Bs</div>` : ''}
+                                </div>
+                                <div style="font-size: 18px; font-weight: bold; border-top: 1px solid #000; margin-top: 5px; padding-top: 5px;">TOTAL NETO: $${f.totalUsd.toFixed(2)}</div>
+                                <div style="font-size: 18px; font-weight: bold;">TOTAL NETO: ${f.totalBs.toFixed(2)} Bs</div>
+                                <div style="font-size: 12px; color: #444;">Tasa de cambio oficial: ${f.tasa.toFixed(2)} Bs/$</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 50px; text-align: center; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 20px;">¡GRACIAS POR SU COMPRA!</div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `NotaEntrega_${f.numero}.html`;
+            link.click();
+        };
+
+        function actualizarTotalesCaja() {
+    const container = document.getElementById('caja-items-seleccionados');
+    container.innerHTML = '';
+    let subtotalBrutoUsd = 0;
+
+    carrito.forEach((item, index) => {
+        let subtotalItemUsd = item.precio * item.cantidad;
+        let subtotalItemBs = subtotalItemUsd * tasaBcv;
+        subtotalBrutoUsd += subtotalItemUsd;
+        
+        container.innerHTML += `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:5px;">
+                <span>${parseFloat(item.cantidad.toFixed(3))}x ${item.nombre}</span>
+                <div>
+                    <span style="margin-right: 8px;">$${subtotalItemUsd.toFixed(2)} (${subtotalItemBs.toFixed(2)} Bs)</span>
+                    <button onclick="eliminarDelCarrito(${index})" style="background: var(--danger); color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-weight: bold;">X</button>
+                </div>
+            </div>
+        `;
+    });
+
+    let descuentoPorc = 0;
+    if(subtotalBrutoUsd > 2000) {
+        descuentoPorc = 0.08;
+    } else {
+        const cond = document.getElementById('caja-condicion-pago').value;
+        if(cond === 'contado-sin-desc') descuentoPorc = 0.00;
+        else if(cond === 'contado') descuentoPorc = 0.07;
+        else if(cond === '15dias') descuentoPorc = 0.05;
+        else if(cond === '30dias') descuentoPorc = 0.03;
+    }
+
+    let baseImponibleBrutaUsd = 0;
+    if(configCache.ivaActivo) {
+        carrito.forEach((item) => {
+            const esExento = productosCache[item.id] ? productosCache[item.id].exento : false;
+            if(!esExento) {
+                baseImponibleBrutaUsd += (item.precio * item.cantidad);
+            }
+        });
+    }
+
+    let totalDescuentoUsd = subtotalBrutoUsd * descuentoPorc;
+    let subtotalConDescuentoUsd = subtotalBrutoUsd - totalDescuentoUsd;
+    
+    let baseImponibleNetaUsd = baseImponibleBrutaUsd * (1 - descuentoPorc);
+    let totalIvaUsd = baseImponibleNetaUsd * 0.16;
+    let totalIvaBs = totalIvaUsd * tasaBcv;
+
+    let totalNetoUsd = subtotalConDescuentoUsd + totalIvaUsd;
+    let subtotalBrutoBs = subtotalBrutoUsd * tasaBcv;
+    let totalDescuentoBs = totalDescuentoUsd * tasaBcv;
+    let totalNetoBs = totalNetoUsd * tasaBcv;
+
+    document.getElementById('bruto-dinamico-txt').innerText = `$${subtotalBrutoUsd.toFixed(2)} | ${subtotalBrutoBs.toFixed(2)} Bs`;
+    document.getElementById('descuento-dinamico-txt').innerText = `-$${totalDescuentoUsd.toFixed(2)} | -${totalDescuentoBs.toFixed(2)} Bs (-${descuentoPorc*100}%)`;
+    
+    const ivaRow = document.getElementById('caja-iva-row');
+    if(ivaRow) {
+        if(configCache.ivaActivo && totalIvaUsd > 0) {
+            ivaRow.style.display = 'flex';
+            document.getElementById('iva-dinamico-txt').innerText = `+$${totalIvaUsd.toFixed(2)} | +${totalIvaBs.toFixed(2)} Bs`;
+        } else {
+            ivaRow.style.display = 'none';
+        }
+    }
+
+    document.getElementById('total-usd').innerText = totalNetoUsd.toFixed(2);
+    document.getElementById('total-bs').innerText = totalNetoBs.toFixed(2);
+    
+    const db = getDatabase();
+    const tasaActual = parseFloat(document.getElementById('global-tasa').value) || 0;
+    
+    set(ref(db, 'visor_actual'), {
+        carrito: carrito,
+        totalUSD: totalNetoUsd.toFixed(2), 
+        totalBs: totalNetoBs.toFixed(2),   
+        tasaUsada: tasaActual.toFixed(2),    
+        timestamp: Date.now()                
+    });
+
+    document.getElementById('total-usd-display').innerText = '$' + totalNetoUsd.toFixed(2);
+    document.getElementById('total-bs-display').innerText = totalNetoBs.toFixed(2) + ' Bs';
+    
+    if (typeof calcularCambioEfectivo === 'function') {
+        calcularCambioEfectivo();
+    }
+}
+
+        window.eliminarDelCarrito = function(index) {
+            carrito.splice(index, 1);
+            actualizarTotalesCaja();
+        };
+
+        window.limpiarCaja = function() {
+            carrito = [];
+            if(rolActivo !== 'cliente') {
+                document.getElementById('caja-cliente').value = '';
+                document.getElementById('caja-cliente').removeAttribute('data-cedula');
+            }
+            document.getElementById('caja-referencia').value = '';
+            document.getElementById('caja-monto-abono-bs').value = '';
+            document.getElementById('caja-comprobante-file').value = '';
+            document.getElementById('caja-barcode-input').value = '';
+            actualizarTotalesCaja();
+        };
+
+        function esReferenciaInvalidaODuplicada(nuevaRef) {
+            if(!nuevaRef || nuevaRef === "Ninguna") return false;
+            const refLimpia = nuevaRef.trim().toLowerCase();
+            
+            for(let key in facturasCache) {
+                const f = facturasCache[key];
+                
+                if(f.referencia && f.referencia !== "Ninguna") {
+                    const refsFragmentos = f.referencia.trim().toLowerCase().split(" - ");
+                    if(refsFragmentos.includes(refLimpia)) return true;
+                }
+                
+                if(f.abonos) {
+                    for(let a of f.abonos) {
+                        if(a.referencia && a.referencia.trim().toLowerCase() === refLimpia) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        window.abrirRegistroCliente = function() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.querySelector('.navbar').style.display = 'none';
+            
+            document.getElementById('perf-nombre').value = '';
+            document.getElementById('perf-cedula').value = '';
+            document.getElementById('perf-tel').value = '';
+            document.getElementById('perf-dir').value = '';
+            document.getElementById('perf-email').value = '';
+            document.getElementById('perf-pass').value = '';
+            
+            document.getElementById('bloque-credenciales-registro').style.display = 'block';
+            document.getElementById('btn-cancelar-registro').style.display = 'block';
+            usuarioKeyActivo = null;
+            rolActivo = null;
+
+            switchTab('tab-perfil');
+        };
+
+        window.cancelarRegistro = function() {
+            document.querySelector('.navbar').style.display = 'flex';
+            document.getElementById('login-overlay').style.display = 'flex';
+        };
+
+        window.obtenerUbicacionGPS = function() {
+            const btn = document.getElementById('btn-gps');
+            btn.innerText = "⏳ Conectando con el satélite...";
+            btn.style.background = "#ffc107";
+            btn.style.borderColor = "#d39e00";
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    document.getElementById('perf-lat').value = lat;
+                    document.getElementById('perf-lng').value = lng;
+                    
+                    const textDir = document.getElementById('perf-dir').value;
+                    if(!textDir.includes("Ubicación GPS fijada")) {
+                        document.getElementById('perf-dir').value = textDir + (textDir ? " - " : "") + "📍 Ubicación GPS fijada exitosamente.";
+                    }
+                    
+                    btn.innerText = "✅ UBICACIÓN GPS GUARDADA CON ÉXITO";
+                    btn.style.background = "var(--success)";
+                    btn.style.borderColor = "#1e7e34";
+                }, function(error) {
+                    btn.innerText = "❌ ERROR: ENCIENDA SU GPS Y DELE PERMISOS AL NAVEGADOR";
+                    btn.style.background = "var(--danger)";
+                    alert("No pudimos rastrear su ubicación. Por favor, asegúrese de tener encendida la Ubicación (GPS) de su teléfono y de permitirle el acceso al navegador.");
+                }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+            } else {
+                alert("Su navegador no soporta tecnología de geolocalización.");
+            }
+        };
+
+        window.guardarPerfilCliente = function() {
+            const nombre = document.getElementById('perf-nombre').value.trim();
+            const cedula = document.getElementById('perf-cedula').value.trim();
+            const telefono = document.getElementById('perf-tel').value.trim();
+            const direccion = document.getElementById('perf-dir').value.trim();
+            const password = document.getElementById('perf-pass').value.trim();
+            const emailRegistro = document.getElementById('perf-email').value.trim();
+
+            if(!nombre || !cedula) return alert("El Nombre y la Cédula/ID son datos obligatorios.");
+
+            const latitud = document.getElementById('perf-lat').value || null;
+            const longitud = document.getElementById('perf-lng').value || null;
+
+            const perfilData = { nombre, cedula, telefono, direccion, latitud, longitud };
+            const cliData = { cedula, nombre, telefono, direccion, latitud, longitud };
+
+            // Si es un REGISTRO NUEVO
+            if (!usuarioKeyActivo) {
+                if(!emailRegistro || !emailRegistro.includes("@")) return alert("Por favor, ingrese un correo electrónico válido.");
+                if(!password || password.length < 6) return alert("Debe crear una contraseña de mínimo 6 caracteres.");
+
+                if (clientesCache && clientesCache[cedula]) {
+                    const telefonoEmpresa = configCache.contacto || "los números de atención";
+                    return alert(`⚠️ ALERTA DE SEGURIDAD\n\nLa cédula ingresada ya está registrada.\nContacto: ${telefonoEmpresa}`);
+                }
+
+                createUserWithEmailAndPassword(auth, emailRegistro, password)
+                    .then((userCredential) => {
+                        const user = userCredential.user;
+                        const nuevoUsuario = {
+                            nombre: nombre,
+                            rol: 'cliente',
+                            activo: true,
+                            email: emailRegistro,
+                            perfil: perfilData
+                        };
+
+                        // Guardamos al usuario de forma segura
+                        set(ref(db, `personal/${user.uid}`), nuevoUsuario).then(() => {
+                            set(ref(db, `clientes/${cedula}`), cliData).then(() => {
+                                alert("✅ Registro Exitoso.\n\nBienvenido a la tienda. Hemos cargado tus datos, solo presiona 'Ingresar'.");
+                                
+                                // Volver al inicio de sesión de forma fluida
+                                document.querySelector('.navbar').style.display = 'flex';
+                                switchTab('tab-caja'); // Lo saca de la vista de perfil en el fondo
+                                document.getElementById('login-overlay').style.display = 'flex';
+                                
+                                // Prellenar correo y contraseña automáticamente
+                                document.getElementById('login-email').value = emailRegistro;
+                                document.getElementById('login-pass').value = password;
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        if(error.code === 'auth/email-already-in-use') {
+                            alert("Este correo electrónico ya se encuentra registrado. Inicie sesión.");
+                        } else {
+                            alert("Error al registrar: " + error.message);
+                        }
+                    });
+            } else {
+                // Si el cliente ya estaba adentro y solo está ACTUALIZANDO sus datos de envío
+                set(ref(db, `personal/${usuarioKeyActivo}/perfil`), perfilData).then(() => {
+                    set(ref(db, `clientes/${cedula}`), cliData);
+                    alert("✅ Tus datos se han actualizado correctamente.");
+                    document.getElementById('caja-cliente').value = nombre;
+                    document.getElementById('caja-cliente').setAttribute('data-cedula', cedula);
+                    switchTab('tab-caja'); 
+                });
+            }
+        };
+
+        window.renderizarTablaClientes = function() {
+            const container = document.getElementById('tabla-clientes-body');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            const buscador = document.getElementById('buscador-clientes').value.toLowerCase();
+            
+            let listado = [];
+            for(let cedula in clientesCache) {
+                const c = clientesCache[cedula];
+                let numCompras = 0;
+                let totalGastado = 0;
+
+                for(let fk in facturasCache) {
+                    const f = facturasCache[fk];
+                    if(f.cedulaCliente === c.cedula || f.cliente === c.nombre) {
+                        numCompras++;
+                        totalGastado += f.totalUsd;
+                    }
+                }
+                
+                listado.push({
+                    cedula: c.cedula,
+                    nombre: c.nombre,
+                    telefono: c.telefono,
+                    direccion: c.direccion,
+                    compras: numCompras,
+                    gastado: totalGastado
+                });
+            }
+
+            listado.sort((a, b) => b.compras - a.compras);
+
+            listado.forEach(c => {
+                if(buscador && !c.nombre.toLowerCase().includes(buscador) && !c.cedula.includes(buscador)) return;
+                
+                container.innerHTML += `
+                    <tr style="cursor:pointer; transition:0.2s;" title="Clic para ver todos los detalles" onclick="verDetallesCliente('${c.cedula}')" onmouseover="this.style.background='#f1f1f1'" onmouseout="this.style.background='none'">
+                        <td><b style="color:var(--primary);">${c.nombre}</b></td>
+                        <td>${c.cedula}</td>
+                        <td>${c.compras}</td>
+                        <td style="color:var(--success); font-weight:bold;">$${c.gastado.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        };
+
+        window.verDetallesCliente = function(cedula) {
+            const c = clientesCache[cedula];
+            if(!c) return;
+            
+            document.getElementById('detalles-cliente-info').innerHTML = `
+                <p><b>👤 Nombre y Apellido:</b> ${c.nombre}</p>
+                <p><b>💳 Cédula/ID:</b> ${c.cedula}</p>
+                <p><b>📞 Teléfono:</b> ${c.telefono || 'No registrado'}</p>
+                <p><b>🏠 Dirección:</b> ${c.direccion || 'No registrada'}</p>
+            `;
+            document.getElementById('modal-ver-cliente').style.display = 'flex';
+        };
+
+function parseFechaVE(fechaStr) {
+    if(!fechaStr) return new Date(0);
+    const partes = fechaStr.split(',');
+    const fechaPart = partes[0].trim().split('/'); 
+    if(fechaPart.length !== 3) return new Date(0);
+    return new Date(fechaPart[2], fechaPart[1]-1, fechaPart[0]);
+}
+
+window.generarReportesVentas = function() {
+    const periodo = document.getElementById('reporte-periodo').value;
+    const hoy = new Date();
+    hoy.setHours(23,59,59,999); 
+    
+    let inicio = new Date(hoy);
+    inicio.setHours(0,0,0,0); 
+
+    if(periodo === 'semanal') {
+        let diaDeLaSemana = hoy.getDay(); 
+        let dif = hoy.getDate() - diaDeLaSemana + (diaDeLaSemana === 0 ? -6 : 1); 
+        inicio = new Date(hoy.setDate(dif));
+        inicio.setHours(0,0,0,0);
+    } else if(periodo === 'mensual') {
+        inicio.setDate(1); 
+    } else if(periodo === 'anual') {
+        inicio.setMonth(0, 1); 
+    }
+
+    let totEfectivo = 0, totBanco = 0, totIva = 0, totGanancia = 0;
+    let ventasVendedores = {};
+
+    for(let key in facturasCache) {
+        const f = facturasCache[key];
+        const fechaFac = parseFechaVE(f.fecha);
+
+        if(fechaFac >= inicio && fechaFac <= hoy) {
+            totIva += (f.totalIvaUsd || 0);
+            
+            if(!ventasVendedores[f.vendedor]) ventasVendedores[f.vendedor] = 0;
+            ventasVendedores[f.vendedor] += f.totalUsd;
+
+            let costoTotalNota = 0;
+            if(f.items) {
+                f.items.forEach(i => {
+                    let p = productosCache[i.id];
+                    let costoItem = p && p.costo ? parseFloat(p.costo) : 0;
+                    costoTotalNota += (costoItem * i.cantidad);
+                });
+            }
+            let subtotalVenta = f.totalUsd - (f.totalIvaUsd || 0);
+            let gananciaNeta = subtotalVenta - costoTotalNota;
+            if(gananciaNeta < 0) gananciaNeta = 0; 
+            totGanancia += gananciaNeta;
+
+            if(f.abonos) {
+                f.abonos.forEach(ab => {
+                    let abFecha = parseFechaVE(ab.fechaAbono);
+                    if(abFecha >= inicio && abFecha <= hoy) {
+                        let mUsd = ab.montoUsd || (ab.montoBs / (f.tasa || 1));
+                        if(ab.referencia && ab.referencia.toUpperCase() === "EFECTIVO") {
+                            totEfectivo += mUsd;
+                        } else {
+                            totBanco += mUsd; 
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    document.getElementById('rep-efectivo').innerText = "$" + totEfectivo.toFixed(2);
+    document.getElementById('rep-banco').innerText = "$" + totBanco.toFixed(2);
+    document.getElementById('rep-iva').innerText = "$" + totIva.toFixed(2);
+    document.getElementById('rep-ganancia').innerText = "$" + totGanancia.toFixed(2);
+
+    const containerVend = document.getElementById('reporte-vendedores');
+    containerVend.innerHTML = '';
+    let arrVendedores = Object.keys(ventasVendedores).sort((a,b) => ventasVendedores[b] - ventasVendedores[a]);
+    
+    if(arrVendedores.length === 0) {
+        containerVend.innerHTML = '<p style="color:#666; font-size:14px; text-align:center;">No hay ventas registradas en este período de tiempo.</p>';
+    } else {
+        arrVendedores.forEach((vend, index) => {
+            let medalla = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : '👤'));
+            containerVend.innerHTML += `
+                <div style="background:#f8f9fa; padding:10px 15px; margin-bottom:8px; border-radius:6px; border: 1px solid #ddd; display: flex; justify-content: space-between;">
+                    <span style="font-weight:bold; color:var(--dark); text-transform:uppercase;">${medalla} ${vend}</span>
+                    <span style="color:var(--success); font-weight:bold; font-size:15px;">$${ventasVendedores[vend].toFixed(2)}</span>
+                </div>
+            `;
+        });
+    }
+};
+
+window.renderizarReporteInventario = function() {
+    const tbody = document.getElementById('reporte-inventario-tabla');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    let contador = 0;
+    
+    let productosOrdenados = [];
+    for(let key in productosCache) {
+        productosOrdenados.push(productosCache[key]);
+    }
+    productosOrdenados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    productosOrdenados.forEach(p => {
+        contador++;
+        let stockColor = p.stock <= 5 ? 'var(--danger)' : 'var(--primary)'; 
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 8px;"><b>${p.nombre}</b></td>
+                <td style="padding: 8px; color:#555;">$${(p.costo || 0).toFixed(2)}</td>
+                <td style="padding: 8px; font-size:15px; font-weight:bold; color:${stockColor};">${p.stock}</td>
+            </tr>
+        `;
+    });
+    
+    const countLabel = document.getElementById('rep-total-tipos-prod');
+    if(countLabel) countLabel.innerText = contador;
+};
+
+// --- FUNCIONES DE RESPALDO (SISTEMA ALMACÉN) ---
+
+window.exportarInventario = function() {
+    console.log("Intentando exportar...");
+    // CORRECCIÓN: Tu base de datos tiene la carpeta 'almacen'
+    const dbRef = ref(db, 'almacen'); 
+    
+    get(dbRef).then((snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const dataStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([dataStr], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = "respaldo_almacen.txt";
+            link.click();
+            alert("Respaldo descargado.");
+        } else {
+            alert("Error: No hay datos en 'almacen'.");
+        }
+    }).catch(err => {
+        alert("Error de Firebase: " + err.message);
+    });
+};
+
+window.importarInventario = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const datos = JSON.parse(e.target.result);
+            // CORRECCIÓN: Guardamos en 'almacen'
+            set(ref(db, 'almacen'), datos).then(() => {
+                alert("Restaurado con éxito.");
+                location.reload();
+            });
+        } catch (err) {
+            alert("Error al leer el archivo.");
+        }
+    };
+    reader.readAsText(file);
+};
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        const elementoActivo = document.activeElement;
+        
+        if (elementoActivo && (
+            elementoActivo.id === 'caja-cliente' || // <--- EXCLUYE EL CAMPO CLIENTE DEL COBRO AUTOMÁTICO
+            elementoActivo.id === 'caja-barcode-input' || 
+            elementoActivo.id === 'caja-buscar-prod' || 
+            elementoActivo.id === 'almacen-buscar' || 
+            elementoActivo.id === 'factura-buscador' || 
+            elementoActivo.id === 'buscador-clientes'
+        )) {
+            return; 
+        }
+
+        const pestañaCaja = document.getElementById('tab-caja');
+        if (pestañaCaja && pestañaCaja.classList.contains('active')) {
+            if (carrito && carrito.length > 0) {
+                event.preventDefault(); 
+                procesarFacturacion();
+            }
+        }
+    }
+});
+
+window.cerrarModalNota = function() {
+    document.getElementById('modal-ver-nota').style.display = 'none';
+};
+
+window.abrirModalNotaFlotante = function(contenidoHTML) {
+    const modal = document.getElementById('modal-ver-nota');
+    const contenedor = document.getElementById('modal-nota-contenido');
+    
+    contenedor.innerHTML = contenidoHTML;
+    modal.style.display = 'flex';
+};
+
+window.imprimirDesdeModal = function() {
+    const contenido = document.getElementById('modal-nota-contenido').innerHTML;
+    const ventanaPrint = window.open('', '_blank');
+    
+    ventanaPrint.document.write(`
+        <html>
+            <head>
+                <title>Impresión de Nota</title>
+                <style>
+                    body { font-family: 'Courier New', Courier, monospace; padding: 30px; color: #000; text-align: center; background: white; }
+                    .ticket { display: inline-block; text-align: left; background: white; width: 100%; max-width: 500px; box-sizing: border-box; font-weight: bold; }
+                    .factura-header { display: flex; flex-direction: column; align-items: center; text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 10px; }
+                    .factura-header div { text-align: center; width: 100% !important; }
+                    .factura-header div:last-child { text-align: left !important; margin-top: 8px; border-top: 1px dashed #000; padding-top: 8px; }
+                    .factura-header h2 { font-size: 15px; margin: 3px 0; font-weight: bold; }
+                    .factura-header p { margin: 2px 0; font-size: 15px; }
+                    .tabla-carta { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 15px; }
+                    .tabla-carta th { background: none !important; border-top: 1px dashed #000; border-bottom: 1px dashed #000; border-left: none !important; border-right: none !important; padding: 4px 1px; font-weight: bold; }
+                    .tabla-carta th:nth-child(1), .tabla-carta td:nth-child(1) { text-align: center; width: 10%; }
+                    .tabla-carta th:nth-child(2), .tabla-carta td:nth-child(2) { text-align: left; width: 40%; }
+                    .tabla-carta th:nth-child(3), .tabla-carta td:nth-child(3) { text-align: right; width: 15%; }
+                    .tabla-carta th:nth-child(4), .tabla-carta td:nth-child(4) { text-align: right; width: 17%; }
+                    .tabla-carta th:nth-child(5), .tabla-carta td:nth-child(5) { text-align: right; width: 18%; }
+                    .tabla-carta td { border: none !important; padding: 3px 1px; vertical-align: top; word-break: break-all; }
+                    .factura-totales-box { display: block !important; margin-top: 10px; border-top: 1px dashed #000; padding-top: 6px; }
+                    .factura-totales-box > div { width: 100% !important; text-align: right !important; font-size: 11px; line-height: 1.4; }
+                </style>
+            </head>
+            <body>
+                <div class="ticket">
+                    ${contenido}
+                </div>
+            </body>
+        </html>
+    `);
+    ventanaPrint.document.close();
+    ventanaPrint.focus();
+    
+    setTimeout(() => {
+        ventanaPrint.print();
+        ventanaPrint.close();
+    }, 500);
+};
+
+window.guardarDesdeModal = function() {
+    alert("Para guardar el archivo en tu equipo, en la siguiente ventana selecciona 'Guardar como PDF' o 'Microsoft Print to PDF' en la lista de impresoras.");
+    imprimirDesdeModal();
+};
+
+window.abrirLightboxZoom = function(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox-visor').style.display = 'flex';
+        };
+
+        function encodeImageToBase64(fileInput, callback) {
+            const file = fileInput.files[0];
+            if (!file) return callback("");
+            const reader = new FileReader();
+            reader.onloadend = () => callback(reader.result);
+            reader.readAsDataURL(file);
+        }
+        
+        window.guardarConfiguracion = function() {
+            const nombre = document.getElementById('conf-nombre').value.trim();
+            const rif = document.getElementById('conf-rif').value.trim();
+            const direccion = document.getElementById('conf-direccion').value.trim();
+            const contacto = document.getElementById('conf-contacto').value.trim();
+            const banca = document.getElementById('conf-banca').value.trim();
+            const ivaActivo = document.getElementById('conf-iva') ? document.getElementById('conf-iva').checked : false;
+            const comisionesActivas = document.getElementById('conf-comisiones') ? document.getElementById('conf-comisiones').checked : false;
+            const logoFile = document.getElementById('conf-logo');
+
+            encodeImageToBase64(logoFile, (base64) => {
+                const configData = { nombre, rif, direccion, contacto, banca, ivaActivo, comisionesActivas };
+                if(base64) configData.logo = base64;
+                else if(configCache.logo) configData.logo = configCache.logo;
+
+                set(ref(db, 'configuracion'), configData).then(() => alert("Parámetros guardados con éxito."));
+            });
+        };
+
+        window.analizarComprobante = async function(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const statusLabel = document.getElementById('caja-comprobante-opcional');
+            statusLabel.innerText = "🔍 Analizando imagen...";
+            
+            Tesseract.recognize(file, 'spa').then(({ data: { text } }) => {
+                const regex = /(?:referencia|ref|operacion|operación|nro|recibo|nº|#|num)\D{0,15}(\d{5,15})/gi;
+                let match = regex.exec(text.toLowerCase());
+                
+                if (match && match[1]) {
+                    const refCompleta = match[1];
+                    const ultimos5 = refCompleta.slice(-5);
+                    
+                    document.getElementById('caja-referencia').value = ultimos5;
+                    statusLabel.innerText = "✅ Detectada: " + refCompleta + " (Usando " + ultimos5 + ")";
+                    statusLabel.style.color = "var(--success)";
+                } else {
+                    const numerosLargos = text.match(/\d{6,15}/g);
+                    if (numerosLargos) {
+                        const refCompleta = numerosLargos.sort((a, b) => b.length - a.length)[0];
+                        const ultimos5 = refCompleta.slice(-5);
+                        document.getElementById('caja-referencia').value = ultimos5;
+                        statusLabel.innerText = "✅ Detectada: " + refCompleta;
+                        statusLabel.style.color = "var(--success)";
+                    } else {
+                        statusLabel.innerText = "⚠️ No detectada, ingrésela manualmente.";
+                        statusLabel.style.color = "var(--danger)";
+                    }
+                }
+            }).catch(err => {
+                statusLabel.innerText = "❌ Error al analizar.";
+                console.error(err);
+            });
+        };
+
+        window.exportarRespaldoTotal = function() {
+            if(rolActivo !== 'administrador') return alert("Solo el administrador principal puede realizar respaldos globales.");
+            
+            if(!confirm("¿Desea descargar un respaldo completo de TODA la base de datos? (Esto puede tardar unos segundos dependiendo del tamaño)")) return;
+            
+            // Recolectar datos nodo por nodo para evitar el bloqueo de seguridad en la raíz (root)
+            Promise.all([
+                get(ref(db, 'configuracion')),
+                get(ref(db, 'almacen')),
+                get(ref(db, 'facturas')),
+                get(ref(db, 'clientes')),
+                get(ref(db, 'personal')),
+                get(ref(db, 'contadorNotas'))
+            ]).then((snapshots) => {
+                const data = {
+                    configuracion: snapshots[0].val() || null,
+                    almacen: snapshots[1].val() || null,
+                    facturas: snapshots[2].val() || null,
+                    clientes: snapshots[3].val() || null,
+                    personal: snapshots[4].val() || null,
+                    contadorNotas: snapshots[5].val() || null
+                };
+
+                // Limpiar nodos que estén vacíos para que el archivo quede limpio
+                Object.keys(data).forEach(key => { if(data[key] === null) delete data[key]; });
+
+                if (Object.keys(data).length > 0) {
+                    const dataStr = JSON.stringify(data, null, 2);
+                    const blob = new Blob([dataStr], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    
+                    const f = new Date();
+                    const fecha = `${f.getDate()}-${f.getMonth()+1}-${f.getFullYear()}_${f.getHours()}-${f.getMinutes()}`;
+                    link.download = `Respaldo_Global_Sistema_${fecha}.txt`;
+                    link.click();
+                } else {
+                    alert("El servidor está vacío, no hay datos para respaldar.");
+                }
+            }).catch(err => alert("Error de conexión o permisos en Firebase: " + err.message));
+        };
+
+        window.importarRespaldoTotal = function(event) {
+            if(rolActivo !== 'administrador') return alert("Solo el administrador principal puede cargar respaldos globales.");
+            
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if(!confirm("⚠️ ADVERTENCIA EXTREMA ⚠️\n\nAl realizar una Carga Global, se SOBRESCRIBIRÁ y BORRARÁ toda la información que actualmente está en el servidor para reemplazarla con la de este archivo.\n\n¿Estás absolutamente seguro de continuar?")) {
+                event.target.value = ''; 
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const datosGlobales = JSON.parse(e.target.result);
+                    if(typeof datosGlobales !== 'object' || datosGlobales === null) throw new Error("Estructura inválida");
+
+                    // Subir datos nodo por nodo para evitar el bloqueo de escritura en la raíz
+                    const promesas = [];
+                    if (datosGlobales.configuracion !== undefined) promesas.push(set(ref(db, 'configuracion'), datosGlobales.configuracion));
+                    if (datosGlobales.almacen !== undefined) promesas.push(set(ref(db, 'almacen'), datosGlobales.almacen));
+                    if (datosGlobales.facturas !== undefined) promesas.push(set(ref(db, 'facturas'), datosGlobales.facturas));
+                    if (datosGlobales.clientes !== undefined) promesas.push(set(ref(db, 'clientes'), datosGlobales.clientes));
+                    if (datosGlobales.personal !== undefined) promesas.push(set(ref(db, 'personal'), datosGlobales.personal));
+                    if (datosGlobales.contadorNotas !== undefined) promesas.push(set(ref(db, 'contadorNotas'), datosGlobales.contadorNotas));
+
+                    Promise.all(promesas).then(() => {
+                        alert("✅ CARGA GLOBAL EXITOSA.\nEl sistema se ha restaurado completamente. La página se reiniciará para aplicar los cambios.");
+                        location.reload();
+                    }).catch(err => alert("Error al subir datos al servidor (Reglas de Firebase): " + err.message));
+                    
+                } catch (err) {
+                    alert("Error: El archivo .txt seleccionado no es válido o está corrupto.");
+                }
+                event.target.value = ''; 
+            };
+            reader.readAsText(file);
+        };
+window.abrirModalPedidosPendientes = function() {
+    document.getElementById('modal-pedidos-pendientes').style.display = 'flex';
+};
+
+window.marcarComoDespachado = function(key) {
+    if(confirm("📦 ¿Confirmas que este pedido ya fue enviado o entregado al cliente?")) {
+        set(ref(db, `facturas/${key}/estadoDespacho`), 'despachado').then(() => {
+            alert("✅ ¡Pedido marcado como despachado exitosamente!");
+        });
+    }
+};
+</script>
+</body>
+</html>
